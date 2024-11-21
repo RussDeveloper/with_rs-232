@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+body {font-family: Arial, Helvetica, sans-serif;}
+* {box-sizing: border-box}
+
+/* Поля ввода полной ширины */
+input[type=text], input[type=password] {
+  width: 100%;
+  padding: 15px;
+  margin: 5px 0 22px 0;
+  display: inline-block;
+  border: none;
+  background: #f1f1f1;
+  font-size: 28px;
+}
+
+input[type=text]:focus, input[type=password]:focus {
+  background-color: #ddd;
+  outline: none;
+}
+
+hr {
+  border: 1px solid #f1f1f1;
+  margin-bottom: 25px;
+}
+
+/* Установите стиль для всех кнопок */
+button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  opacity: 0.9;
+  font-size: 28px;
+}
+
+button:hover {
+  opacity:1;
+}
+
+/* Дополнительные стили для кнопки Отмена */
+.sendbtn {
+  padding: 14px 20px;
+  background-color: #f44336;
+}
+
+/* Поплавок отмена и кнопки регистрации и добавить равную ширину */
+.sendbtn, .signupbtn {
+  float: left;
+  width: 50%;
+}
+
+/* Добавление отступов к элементам контейнера */
+.container {
+  padding: 16px;
+  font-size: 28px;
+}
+
+/* Снимите поплавки */
+.clearfix::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+/* Измените стили для кнопки отмены и кнопки регистрации на дополнительных маленьких экранах */
+@media screen and (max-width: 300px) {
+  .sendbtn, .signupbtn {
+     width: 100%;
+  }
+}
+
+      .box {
+      width: 200px;
+      height: 40px;
+      border: 1px solid #999;
+      font-size: 25px;
+      background-color: #eee;
+      border-radius: 5px;
+      box-shadow: 4px 4px #ccc
+      }
+	  
+</style>
+
+</head>
+
+<body>
+
+<form action="/action_page.html" style="border:1px solid #ccc" name = "general_form">
+  <div class="container">
+	
+    <h1>Форма данных для подключения к рабочей сети</h1>
+    <hr>
+		<label for="email"><b>Выберите сеть</b></label> <br>
+		<select class="box" name="box_field">
