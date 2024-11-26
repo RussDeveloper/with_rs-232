@@ -9,14 +9,14 @@
 #define l_sh1				48
 #define sck1				12
 #define miso1				13
-#define mosi1               11
+#define mosi1       11
 
 #define nss2				38
 #define leds2				2
 #define l_sh2				47
 #define sck2				36
 #define miso2				37
-#define mosi2               35
+#define mosi2       35
 #endif
 
 #ifndef old_pins
@@ -78,6 +78,15 @@ void spi_task( void * parameter)
 
   static char *ptr1, *ptr2, num_cells = num_nodules*5;
 
+  pinMode(sck1, OUTPUT);
+  for(i=0;i<6;i++)
+  {
+    digitalWrite(sck1, 1);
+    delay(1);
+    digitalWrite(sck1, 0);
+    delay(1);
+  }
+
   // Настройка пинов
   spi_1.begin(sck1, miso1, mosi1); //SCLK, MISO, MOSI, SS
   spi_2.begin(sck2, miso2, mosi2); //SCLK, MISO, MOSI, SS
@@ -116,12 +125,15 @@ void spi_task( void * parameter)
 	digitalWrite(l_sh1,HIGH);
 	digitalWrite(l_sh2,HIGH);
 
-    load_buff[11] = 0x0f;
-    load_buff[0] = 0xf0;
+    load_buff[10] = 0x50;
+    load_buff[0] = 0x0e;
+    load_buff[1] = 0x02;
+    load_buff[2] = 0x83;
+    load_buff[3] = 0x13;
 
   delay(100);
   
-  if(1)
+  if(0)
   {  
   do{
     for(i=0;i<5;i++)
@@ -150,7 +162,10 @@ void spi_task( void * parameter)
       Serial.println("Блоки второго порта:");
       delay(1);
       Serial.println(num_bloks[1], HEX);
-  }
+    }else{
+      num_bloks[0] = 5;
+      num_bloks[1] = 5;
+    }
  
   for(;;) 
   {
@@ -165,7 +180,9 @@ void spi_task( void * parameter)
 	    vTaskDelay(1);
 	  digitalWrite(leds1, LOW);
 	  digitalWrite(leds2, LOW);
+    int tt;
 
+  load_buff[0]++;
 
     if(ptr1 == &spi1_buff[0][0])
       {
@@ -187,18 +204,24 @@ void spi_task( void * parameter)
         ptr2 = &spi2_buff[0][0];
       }
 */
+
       for(i=0;i<num_cells;i++)
       {
-        if(i>14)
+        if(i>(num_cells-((num_bloks[0]*2)-1)))    //Начиная с 15-го байта передаем байты для нагрузки
         {
+           // k = load_buff[num_cells-i-1];
+            //t = load_buff[num_cells-i+9];
             k = load_buff[num_cells-i-1];
             t = load_buff[num_cells-i+9];
             //Serial.print(t, HEX);
         }
-        *ptr1 = spi_1.transfer(k);		//Выгружаем и сравниваем значения из регистров
-        ptr1++;
-        *ptr2 = spi_2.transfer(t);		//Выгружаем и сравниваем значения из регистров
-        ptr2++;
+        else{k=1; t=1;}
+
+        *ptr1 = spi_1.transfer(k);
+        *ptr2 = spi_2.transfer(t);
+
+        ptr1++; 
+        ptr2++;       
       }
 
       digitalWrite(nss1, 1);
@@ -264,14 +287,18 @@ void spi_task( void * parameter)
   }
 
 }
-
+/*
+SERIAL_8E1    :020056E26462
+SERIAL_8O1    :020056E26462
+SERIAL_8N2    :020056E26462
+*/
 void card_task( void * parameter)
 {
   static char buff[20], i,j;
   String card_val;
   
   Serial1.setRxBufferSize(20);
-  Serial1.begin(9600, SERIAL_8N1, 18, 17);
+  Serial1.begin(10000, SERIAL_8N1, 18, 17);
 
   RFID_dat = xQueueCreate(20,5);
   
@@ -287,16 +314,20 @@ void card_task( void * parameter)
       {
         j = Serial1.read();//
        //Serial.print(atoi((const char*)&j));   :33008B904E64
-       Serial.print((const char)j);
+        //Serial.print((const char)j, HEX);
+        //Serial.print(" ");
         buff[i] = j;
         card_val+=j;
         i++;
       }
+      buff[i]=0;
         xQueueSendToBack(RFID_dat, &buff[0], 100);
-        Serial.println("");
-        card_val = "";      
+        //Serial.println(card_val);
+        Serial.println((const char*)&buff[0]);
+        card_val.clear();
+        //card_val = "";      
       }
-      vTaskDelay(1);  
+      vTaskDelay(5);  
   }
 }
 
@@ -319,8 +350,14 @@ void rs232_task(void *plParametrs)
       Serial2.readBytes(serial_buff, j); 
       str = serial_buff;    
       if(deserializeJson(rs_232.reseive, str) == DeserializationError::Ok)
-        rs_232.rx_flag = true;
-      
+        {rs_232.rx_flag = true;
+          Serial.println("DeserializationError::Ok");
+        
+        const char *pp = rs_232.reseive["command"];
+        
+      //Serial.println(str);
+      Serial.println(pp);
+      }
       j=0;
     }
     
@@ -329,6 +366,7 @@ void rs232_task(void *plParametrs)
       serializeJson(rs_232.transmit, str);
       Serial2.print(str);
       rs_232.tx_flag = false;
+      Serial.print("tx_flag");
     }
     delay(10);
   }

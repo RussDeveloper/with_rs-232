@@ -1,6 +1,8 @@
 ///#include "globals.h"
 #include <WiFi.h>
 #include <EEPROM.h>
+#include "FS.h"
+#include "SPIFFS.h"
 #include "http_con.h"
 #include "globals.h"
 
@@ -22,7 +24,7 @@ extern EventGroupHandle_t main_event_group;
 #define  RED 5
 #define  GREEN 6
 
-
+#define FORMAT_SPIFFS_IF_FAILED true
 // Not sure if NetworkClientSecure checks the validity date of the certificate.
 // Setting clock just to be sure...
 void setClock() {
@@ -117,7 +119,7 @@ byte wifi_reader()
   buff[i]=0;
   token_serv = String(buff);
 
-  /**/
+  /*
  // wifi_ssid.c_str();
   Serial.println("Логин :");
   Serial.println(wifi_ssid);
@@ -133,7 +135,7 @@ byte wifi_reader()
     //Serial.println("");
   Serial.println("Токен сервера:");
   Serial.println(token_serv);
-    //Serial.println("");
+    //Serial.println("");*/
   /*
   for(i=0;i<50;i++)
   {
@@ -243,8 +245,13 @@ byte wifi_saver()
 void STA_Task( void *pvParameters )
 {
   int i;
-  if(wifi_ssid==0)
+  if(wifi_ssid.isEmpty())
     wifi_reader();
+
+    Serial.println("SSID:");
+    Serial.println(wifi_ssid);
+    Serial.println("wifi_pass:");
+    Serial.println(wifi_parol);
  
  while(WiFi.status() != WL_CONNECTED) 
  {
@@ -253,6 +260,47 @@ void STA_Task( void *pvParameters )
   vTaskDelay(3000);
   }
   setClock();
+
+  Serial.println("STA_Task запущена");
+/*
+  File u_list = SPIFFS.open("/list_users_1.txt","w", true);
+
+  u_list.write(10);
+   u_list.close();
+*/
+  FS _fs(SPIFFS);
+
+  File root = _fs.open("/");
+  if (!root) {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println(" - not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+      /*
+      if (levels) {
+        listDir(fs, file.path(), levels - 1);
+      }*/
+    } else {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("\tSIZE: ");
+      Serial.println(file.size());
+    }
+    file = root.openNextFile();
+  }
+
+
+  //String srt = SPIFFS.
+ // u_list.close();
   
   for(;;)
   {

@@ -16,7 +16,7 @@ String getToken_req1("{\n\"Login\": \"test\",\n\"Password\": \"test\"\n}");
 byte server1[] = { 192, 168, 0, 26 };
 
 String token, r_login;
-JsonDocument card_list;
+JsonDocument card_list, doc;
 
 bool get_token(void);
 JsonDocument get_card_list(void);
@@ -28,8 +28,10 @@ void http_master()
 {
   static unsigned long tmr = 0, t_val=0;
   String val = "" ,header = "", data = "";
-
-  if(tmr>100)
+  int i,j,k,t;
+  //Сериализация - из JSON в файл/строку, функцию
+  //Десериализация - из файла/строки в JSON
+  if(tmr>1000)
   {
     get_token();
     /**/
@@ -39,30 +41,40 @@ void http_master()
       
       if(!card_list.isNull())
       {
-        if(serializeJson(card_list, val))              //Получение списка карт
+        i = serializeJson(card_list, val);
+
+        if(i)              //Получение списка карт
           {
-            Serial.println("Список карт: ");
-            Serial.println(val);
-            File u_list = SPIFFS.open("/list_users.txt");
-            data = u_list.readString();
-            if(val != data)                           //В случае несовпадения полученного и сохраненного списка
+           File u_list = SPIFFS.open("/list_users.txt");
+            DeserializationError error = deserializeJson(doc, u_list);
+            if(error!= DeserializationError::Ok)
+              Serial.println("Ошибка десериализации файла из флешь памяти");
+            if(doc.as<String>()!=card_list.as<String>())  //Если присланный список и сохраненный не совпадают - перезаписать
             {
               u_list.close();
               SPIFFS.remove("/list_users.txt");
-              u_list = SPIFFS.open("/list_users.txt");
-              u_list.write((const uint8_t*)val.c_str(), val.length());    //Перезаписываем содержимое файла
+              u_list = SPIFFS.open("/list_users.txt","w",true);
+              serializeJson(card_list, u_list);
               u_list.close();
-            }
-          }
-
+              u_list = SPIFFS.open("/list_users.txt");
+              doc.clear();
+              deserializeJson(doc, u_list);
+              Serial.println("Сохраненный список : ");
+              Serial.println(doc.as<String>());              
+            }else
+              Serial.println("Списки совпадают");
       }else
       Serial.println("Запрос на карты не верен");
     }
     card_list.clear();
-    tmr=0;
+    
   }
-  
-  tmr++;
+  tmr=0;
+
+  }
+   tmr++; 
+
+
 }
 
 bool get_token(void)
@@ -143,8 +155,6 @@ bool get_token(void)
 
 }
 
-
-
 String http_request(String url,       //URL адрес
                     String body,      //Тело запроса
                     String type       //Тип запроса
@@ -200,7 +210,8 @@ JsonDocument get_card_list(void)
         String str, tmp;
         JsonDocument doc;
         int i,j;
-    
+
+   
     if(STA_client)
     {
           STA_client->setInsecure();
@@ -235,11 +246,6 @@ JsonDocument get_card_list(void)
                 Serial.println("Количество элементов в массиве:");
                 j=doc.size();
                 Serial.println(j);
-                /*
-                for(i=0;i<j;i++)
-                {
-                  Serial.println(doc.operator[](i));
-                }*/
                 flag=true;
               }else
                 Serial.print(httpCode);
@@ -249,14 +255,28 @@ JsonDocument get_card_list(void)
           }      
           https->end();
           delete https;
-          doc.clear();
+          //doc.clear();
     }
 
     STA_client->stop();
     delete STA_client;
 
     if(flag==false)
-    doc.clear();
+      doc.clear();
     return doc;
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

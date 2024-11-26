@@ -7,7 +7,6 @@
 #include "SPIFFS.h"
 #include "AT_func.h"
 #include "general.h"
-//#include "AsyncElegantOTA.h"
 //#include "STA_func.h"
 //#include "globals.h"
 /**/
@@ -33,20 +32,23 @@ void init_all();
 void setup() 
 {
   init_all();
+
+
 /*
   digitalWrite(GREEN, 1);
   delay(200);
   digitalWrite(GREEN, 0);
 */
     //Создаем задачу, которая будет выполняться на ядре 1 с наивысшим приоритетом (1)
+  /*  */ 
   xTaskCreatePinnedToCore( AT_Task,    // Функция задачи. 
                           "Task1",    // Имя задачи. 
                           10000,     // Размер стека 
                           NULL,       // Параметры задачи 
                           1,          // Приоритет 
                           &Task1,     // Дескриптор задачи для отслеживания 
-                          0);         // Указываем номер ядра для этой задачи 
- /* */   
+                          1);         // Указываем номер ядра для этой задачи 
+    
   xTaskCreatePinnedToCore(spi_task,    // Функция задачи. 
                           "Task2",    // Имя задачи. 
                           10000,     // Размер стека 
@@ -86,7 +88,7 @@ void setup()
                           2,                      // Приоритет 
                           &Task6,                 // Дескриптор задачи для отслеживания 
                           0);                     // Указываем номер ядра для этой задачи 
-                   
+              
   }                  
 
 void loop()
@@ -103,10 +105,10 @@ void loop()
 
 void init_all()
 {
-    Serial.begin(115200);
+  Serial.begin(115200);
   pinMode(2, OUTPUT);
   pinMode(7,INPUT_PULLUP);
-    pinMode(RED, OUTPUT);
+  pinMode(RED, OUTPUT);
   pinMode(GREEN ,OUTPUT);
 
   main_event_group = xEventGroupCreate();       //флаги глобальных событий
@@ -117,9 +119,10 @@ void init_all()
   }
   
   WiFi.mode(WIFI_AP_STA);
+  /**/
   
   Serial.println("Networks_scan :");  
-   networks_scan();
+  networks_scan();
    
   Serial.println(""); 
   Serial.println("Creating Accesspoint");
@@ -127,8 +130,8 @@ void init_all()
   Serial.print("IP address:\t");
   Serial.println(WiFi.softAPIP());
   Serial.println("Wait 100 ms for AP_START…");
-  wifi_ssid = "0";
-  wifi_parol = "0";
+  //wifi_ssid = "0";
+  //wifi_parol = "0";
   
   delay(100);
   

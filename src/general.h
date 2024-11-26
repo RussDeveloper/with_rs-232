@@ -18,6 +18,8 @@
 extern EventGroupHandle_t main_event_group;
 extern com_drive rs_232;
 extern JsonDocument card_list;
+extern char load_buff[5*num_nodules];
+extern String card_val;
 
 //char user_nums[100][10];
 
@@ -44,26 +46,18 @@ void general_task( void * pvParameters)
          Serial.println("Ошибка отрытия файла со списком карт");
         while(1){}
               }
-    /*
-    p = (char *)malloc(1000);
-    if(p==0)
-    {
-      Serial.println("general task: В куче нет памяти");
-      while(1){}
-    }          
-      */
+         /*     
        list_size = file.size();
-
-      
       for(i=0;i<list_size;i++)            //Перегрузка в оперативу
       {
         //p[i] = file.read();
         //p++;
         list_str += file.read();
-      }
+      }*/
 
       JsonDocument doc;
-      DeserializationError err = deserializeJson(doc, list_str);
+      //DeserializationError err = deserializeJson(doc, list_str);
+      DeserializationError err = deserializeJson(doc, file);
 
       bool ser_flag = true;
       if(err == DeserializationError::Ok)
@@ -86,6 +80,9 @@ void general_task( void * pvParameters)
       //Данные из файла переведены в массив строк
   for(;;)
   {
+
+
+
     if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
     {
 
@@ -100,15 +97,17 @@ void general_task( void * pvParameters)
     }
 /**/
     i=0;
+ /*
     if(RFID_dat)                            //Если очередь создана
       i=uxQueueMessagesWaiting(RFID_dat);
+         
     if(i)                                   //Если приложили карту к RFID считывателю
     {
       JsonArray tmp = doc.as<JsonArray>();  //Получить список сохраненных номеров
       i=0;
 
       char *p;
-      /**/
+      /*
       xQueueReceive(RFID_dat, p, 100);
       String str_rfid(p);
       bool rfid_flag = false;
@@ -129,20 +128,53 @@ void general_task( void * pvParameters)
         String resp_str;                  //Строка с JSON на отправку на планшет
         deserializeJson(resp, resp_str);
       }
-    
-
     }
+    */
     String msg;
     if(rs_232.rx_flag)                  //Сообщение от планшета
     {
-      //serializeJson(rs_232.reseive, msg);
+      //deserializeJson(rs_232.reseive, msg);
       //msg.begin(rs_232.reseive["command"]);
+      //if(rs_232.reseive["command"].is<int>())
+      //{
+        const char *ptr = rs_232.reseive["command"];
+        if(ptr){
+          msg += ptr;
+          Serial.println("general_task");
+          Serial.println(msg);
+          //delete ptr;
+            if(msg =="start")  
+            {
+              
+            }
+            if(msg =="end")  
+            {
+                rs_232.transmit["command"] = "ok";
+                rs_232.transmit["id"] = "1234";
+                rs_232.tx_flag = true;
+            }
+            if(msg =="ok")  
+            {
+              
+            } 
+            if(msg =="light")  
+            {
+              
+            }
+
+            msg.clear();
+        }
+        else{ Serial.println("Json опять мозги ебет");}
+        //}
+      //if( ==)
+      rs_232.rx_flag = 0;
     }
     delay(1);
   }
 }
 
-
+//Сериализация - из JSON в строку, функцию
+//Десериализация - из строки в JSON
 
 
 
