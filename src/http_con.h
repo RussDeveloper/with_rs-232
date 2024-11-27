@@ -8,6 +8,7 @@
 String servergetToken("https://api.steklm.ru:51112/api/auth/getToken");
 //String servergetCardList("https://api.steklm.ru:51112/api/card/ ");
 String servergetCardList("https://api.steklm.ru:51112/api/Card?mac=3C-84-27-20-F5-B4");
+String user_action("http://192.168.0.26:1322/api/log/");
 //String servergetCardList("https://api.steklm.ru:51112/api/card/getCard");
 
 String getToken_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"); //3C:84:27:20:F5:B4
@@ -21,6 +22,7 @@ JsonDocument card_list, doc;
 bool get_token(void);
 JsonDocument get_card_list(void);
 JsonDocument set_cust_action(String);
+int box_action(JsonDocument);
 
 String http_request(String, String, String);
 
@@ -37,6 +39,7 @@ void http_master()
     /**/
     if(token.length()>0)
     {
+      card_list.clear();
       card_list = get_card_list();
       
       if(!card_list.isNull())
@@ -66,7 +69,7 @@ void http_master()
       }else
       Serial.println("Запрос на карты не верен");
     }
-    card_list.clear();
+
     
   }
   tmr=0;
@@ -199,7 +202,7 @@ String http_request(String url,       //URL адрес
     }
   
     delete STA_client;
-          return responce;    
+    return responce;    
 }
 
 JsonDocument get_card_list(void)
@@ -239,7 +242,6 @@ JsonDocument get_card_list(void)
               String payload = https->getString();
               Serial.print("Поступившие данные: ");
               Serial.println(payload);
-
               
               if(deserializeJson(doc, payload) == DeserializationError::Ok)
               {
@@ -267,8 +269,50 @@ JsonDocument get_card_list(void)
 
 }
 
+int box_action(JsonDocument action)
+{
+            WiFiClientSecure *STA_client = new  WiFiClientSecure; 
+        bool tmp;
+        int httpCode;
+
+    if(STA_client)
+    {
+          STA_client->setInsecure();
+          
+          HTTPClient *https = new HTTPClient;
+
+          //https.setTimeout(100);
+          tmp = https->begin(*STA_client, user_action);
+
+          Serial.println("[HTTP] begin...\n");
+          Serial.println(tmp);  //HTTP
+
+          https->setAuthorization(token.c_str());
+          https->setAuthorizationType("Bearer");    
+
+          httpCode = https->sendRequest("POST", action.as<String>());
+      
+          // httpCode will be negative on error
+          if (httpCode > 0) {
+            // HTTP header has been send and Server response header has been handled
+            Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+
+          //doc.clear();
+          }else
+            Serial.println("HTTP not response");
+
+           https->end();
+          delete https;
+
+    STA_client->stop();
+    delete STA_client;
 
 
+}
+    if(httpCode == HTTP_CODE_OK)
+      return 0;
+      else return 1;
+}
 
 
 

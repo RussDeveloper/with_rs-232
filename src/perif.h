@@ -49,6 +49,7 @@ typedef struct
 } com_drive;
 
 com_drive rs_232;
+String card_val;
 
 xQueueHandle RFID_dat;
 //Указатели на валидные массивы сенсоров
@@ -58,11 +59,12 @@ char    spi1_buff[2][110],      //Буферы временного хранен
         spi2_buff[2][110],      //Буферы временного хранения для организации сравнения показаний от предыдущего считывания
         sens_buff[50],          //Данные сенсоров после фиксации изменения
         sens_delta[50],         //Битовая маска разницы
-        sens_change,            //знак разницы - приход - 1, уход - 0
+        
         load_buff[5*num_nodules],
         card_buff[10],
         *valid_sensors_buff[2]
                         ;
+uint32_t sens_change;            //знак разницы - приход - 1, уход - 0
 
 unsigned int flags;             //Переменная глобальных флагов
 
@@ -74,7 +76,7 @@ void spi_task( void * parameter)
     buff[2][110],       
     num_bloks[2],       //Переменные автоматического определения количества блоков
     flag,               //Флаг, показывающий в какую часть двумерного массива в данный момент произошла загрузка
-    k,t;                //Временные переменные
+    k,t, fl;                //Временные переменные
 
   static char *ptr1, *ptr2, num_cells = num_nodules*5;
 
@@ -195,72 +197,81 @@ void spi_task( void * parameter)
         ptr2 = &spi2_buff[0][0];
         flag=0;
       }
-/*
-    if(ptr2 == &spi2_buff[0][0])
-      {
-        ptr2 = &spi2_buff[1][0];
-      }else
-      {
-        ptr2 = &spi2_buff[0][0];
-      }
-*/
 
       for(i=0;i<num_cells;i++)
       {
         if(i>(num_cells-((num_bloks[0]*2)-1)))    //Начиная с 15-го байта передаем байты для нагрузки
         {
-           // k = load_buff[num_cells-i-1];
-            //t = load_buff[num_cells-i+9];
             k = load_buff[num_cells-i-1];
             t = load_buff[num_cells-i+9];
-            //Serial.print(t, HEX);
         }
         else{k=1; t=1;}
-
-        *ptr1 = spi_1.transfer(k);
-        *ptr2 = spi_2.transfer(t);
-
-        ptr1++; 
-        ptr2++;       
+        
+        ptr1[i] = spi_1.transfer(k);
+        ptr2[i] = spi_2.transfer(t);   
       }
 
-      digitalWrite(nss1, 1);
+      digitalWrite(nss1, 1);            //Выгрузка значений на пины
       digitalWrite(nss2, 1);
       delay(1);
       digitalWrite(nss1, 0);
       digitalWrite(nss2, 0);
-     
+
+     sens_change = 0;
+
      for(i=0;i<num_cells;i++)
       {
+        k=0;
         if(spi1_buff[0][i]!=spi1_buff[1][i])
         {
           flags|= sensors_flag;
-          if(spi1_buff[0][i]>spi1_buff[1][i])
+
+          if(spi1_buff[0][i]>spi1_buff[1][i])           //Если данные в нулевом банке больше
           {
-            k = spi1_buff[0][i]&(~spi1_buff[1][i]);   //Получение битов разницы
+            k = spi1_buff[0][i]&(~spi1_buff[1][i]);     //Получение битов разницы
+             if(flag==0)                                //В зависимости от того, какой буфер использовался
+              sens_change|= 1<<(i/5);                   //разница является либо установкой, либо убытием           
           }else
           {
-            k = spi1_buff[1][i]&(~spi1_buff[0][i]);   //Получение битов разницы
+            k = spi1_buff[1][i]&(~spi1_buff[0][i]);     //Получение битов разницы
+
+            if(flag)                                    //В зависимости от того, какой буфер использовался
+              sens_change|= 1<<(i/5);                   //разница является либо установкой, либо убытием
           }
-
+        }
           sens_delta[i] = k;
+          k=0;
+        if(spi2_buff[0][i]!=spi2_buff[1][i])
+        {
+          flags|= sensors_flag;
 
+          if(spi2_buff[0][i]>spi2_buff[1][i])
+          {
+            k = spi2_buff[0][i]&(~spi2_buff[1][i]);   //Получение битов разницы
+            if(flag==0)                                  //В зависимости от того, какой буфер использовался
+            sens_change|= 1<<((i/5)+5);               //разница является либо установкой, либо убытием
+          }else
+          {
+            k = spi2_buff[1][i]&(~spi2_buff[0][i]);   //Получение битов разницы
+
+            if(flag)                                  //В зависимости от того, какой буфер использовался
+            sens_change|= 1<<((i/5)+5);               //разница является либо установкой, либо убытием
+          }
+        }
+          sens_delta[i+num_cells] = k;
+          /*
           if(flag)            //В зависимости от того, какой буфер использовался
           {                   //разница является либо установкой, либо убытием
-            sens_change = 0;
-          }else
-          {
             sens_change = 1;
           }
-          }
-        /**/
-        if(spi2_buff[0][i]!=spi2_buff[1][i])
-          {flags|= sensors_flag;}
-        
+          */
+
+        /*
        ptr1--;
-       ptr2--;  
+       ptr2--; */ 
       }
 
+      //digitalWrite(RED, 0);
       if(flags&sensors_flag)
       {
         j=0;
@@ -276,17 +287,19 @@ void spi_task( void * parameter)
           sens_buff[j] = ptr2[i];
           j++;
         }
-
+        //digitalWrite(RED, 1);
         xEventGroupSetBits(main_event_group, sensors_flag);
         
-        Serial.println("Сигнал с датчиков ");   
+        //Serial.println("Сигнал с датчиков ");   
       }
 
       flags&=~sensors_flag;
     vTaskDelay(100);    
-  }
+  
 
 }
+}
+
 /*
 SERIAL_8E1    :020056E26462
 SERIAL_8O1    :020056E26462
@@ -295,7 +308,7 @@ SERIAL_8N2    :020056E26462
 void card_task( void * parameter)
 {
   static char buff[20], i,j;
-  String card_val;
+
   
   Serial1.setRxBufferSize(20);
   Serial1.begin(10000, SERIAL_8N1, 18, 17);
@@ -308,24 +321,21 @@ void card_task( void * parameter)
     {
       i=0;
       vTaskDelay(100); 
-      xEventGroupSetBits(main_event_group, RFID_flag);
+
       Serial.println("Данные карты: ");
+      card_val.clear();
       while(Serial1.available())
       {
         j = Serial1.read();//
-       //Serial.print(atoi((const char*)&j));   :33008B904E64
-        //Serial.print((const char)j, HEX);
-        //Serial.print(" ");
         buff[i] = j;
+        if(i)
         card_val+=j;
         i++;
       }
       buff[i]=0;
         xQueueSendToBack(RFID_dat, &buff[0], 100);
-        //Serial.println(card_val);
-        Serial.println((const char*)&buff[0]);
-        card_val.clear();
-        //card_val = "";      
+        xEventGroupSetBits(main_event_group, RFID_flag);        
+        Serial.println(card_val); 
       }
       vTaskDelay(5);  
   }

@@ -24,6 +24,8 @@ extern String card_val;
 //char user_nums[100][10];
 
 String users_num[100];
+uint32_t lock_flag, lock_timer;
+bool lock;
 
 typedef struct
 {
@@ -33,19 +35,31 @@ typedef struct
   String shelf_light;
 }tool_form;
 
+tool_form tool[50];
+
+void del(int val)
+{while(val--);}
 
 void general_task( void * pvParameters)
 {
   int list_size,i,j,k;
   char *p;
   String list_str, list_card;
+  JsonDocument t_doc;
+  extern JsonDocument card_list;
+  //JsonArray u_arr = card_list.as<JsonArray>();
 
-  //Запрос данных из файла
-  File file = SPIFFS.open("/list_users.txt");
-    if(!file){
+  //Запрос данных из файлов
+  File t_list = SPIFFS.open("/tool_list.txt");
+  
+  // Номер в списке - "0005694052"
+/*
+    if((!u_list)||(!t_list)){
          Serial.println("Ошибка отрытия файла со списком карт");
         while(1){}
               }
+*/
+    
          /*     
        list_size = file.size();
       for(i=0;i<list_size;i++)            //Перегрузка в оперативу
@@ -53,7 +67,7 @@ void general_task( void * pvParameters)
         //p[i] = file.read();
         //p++;
         list_str += file.read();
-      }*/
+      }
 
       JsonDocument doc;
       //DeserializationError err = deserializeJson(doc, list_str);
@@ -76,15 +90,23 @@ void general_task( void * pvParameters)
       //Данные из файла получены...
 
       j = doc.size();
-
+      */
       //Данные из файла переведены в массив строк
   for(;;)
   {
-
-
-
     if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
     {
+    }
+
+    if(xEventGroupGetBits(main_event_group)&RFID_flag)    //Если RFID_flag считан
+    {
+      serializeJson(card_list, list_card);
+      if((list_card.indexOf("0005694052")!=-1)&&(lock_timer==0))             //фиксация совпадения карты
+      {
+        card_list.clear();
+        lock_timer = 60*100;                              //При совпадении карты ящик открыт минуту
+        
+      }
 
     }
 
@@ -94,6 +116,33 @@ void general_task( void * pvParameters)
       delay(50);
       digitalWrite(RED,LOW);
       xEventGroupClearBits(main_event_group, sensors_flag);
+      for(i=0;i<50;i++)
+      {
+        /*
+          Serial.print(sens_delta[i], HEX);
+          sens_delta[i]=0;
+          delay(1);
+          */
+        if(sens_delta[i])
+        {
+          if(sens_change)
+          {
+          Serial.print("Номер модуля: ");
+          Serial.println(i/5);
+          
+          Serial.print("прибытие/убытие: ");
+          Serial.println(sens_change, HEX);
+          
+
+          Serial.print("Маска датчиков: ");
+          for(j=i;j<(i+4);j++)
+            Serial.print(sens_delta[j], HEX);
+          Serial.println("");
+          sens_delta[i]=0;
+          }
+        }
+      }  
+      //Serial.println("");   
     }
 /**/
     i=0;
@@ -169,7 +218,8 @@ void general_task( void * pvParameters)
       //if( ==)
       rs_232.rx_flag = 0;
     }
-    delay(1);
+    delay(10);
+    while(lock_timer--){}
   }
 }
 
