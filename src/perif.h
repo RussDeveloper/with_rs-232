@@ -333,7 +333,7 @@ void card_task( void * parameter)
       while(Serial1.available())        //Прием
       {
         j = Serial1.read();
-        card_val+=j;    
+        //card_val+=j;    
         /**/    
         if(i>0)
           buff[i-1] = decode(j);        //Декодирование
@@ -349,44 +349,9 @@ void card_task( void * parameter)
       a |= mass[3]<<8;
       a |= mass[4];
       char *p = bin_dec(a);
-
- 
-        Serial.println(a, HEX);
-        Serial.println(a, DEC);
-        Serial.println();
-/*
-        xQueueSendToBack(RFID_dat, &buff[0], 100);
+      card_val+=p;
+        //xQueueSendToBack(RFID_dat, &buff[0], 100);
         xEventGroupSetBits(main_event_group, RFID_flag);
-        b = 0;    //Фасилити
-        c=0;      //Номер карты
-        j=0; k=0;
-
-        Serial.println("");
-        Serial.println("card_val()");
-        Serial.println(card_val.c_str());
-
-      for(i=0;i<40;i++)
-      {
-        if((i==0)||((i%5)>0))
-        {
-          if(i<31)
-          {
-            if(a&0x1)
-              b|=1;
-              b<<= 1;
-          }else{
-            if(a&0x1)
-              c|=1;
-              c<<=1;
-          }        
-        }
-            a>>=1;          
-        }        
-        Serial.println(""); 
-        Serial.println("Фасилити: "); 
-        Serial.println(b, BIN);        
-        Serial.println("Номер: "); 
-        Serial.println(c, BIN);*/        
     }
       vTaskDelay(5);  
   }
@@ -474,9 +439,10 @@ char * bin_dec(uint32_t val)
   static char mass[11];
   char* p=NULL;
   int i,j=0;
-  bool flag = false;
+  bool flag = true;
+  mass[10]=0;
 
-  for(i=0;i<10;i++)
+   for(i=0;i<10;i++)
   {
     if(val/bb[i])
     {
@@ -484,19 +450,15 @@ char * bin_dec(uint32_t val)
       mass[i] = val/bb[i];
       val%=bb[i];
       j++;
-    }
+    }else{mass[i]=0;}
 
     if(flag)
       {
         mass[i] |= 0x30;
-        Serial.print(mass[i]);
-        Serial.print(" ");
       }
   }
-        Serial.println("");
     if(j)
       p = &mass[0];
-
     return p;  
 }
 

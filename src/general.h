@@ -107,7 +107,8 @@ void general_task( void * pvParameters)
         lock_timer = 60*100;                              //При совпадении карты ящик открыт минуту
         
       }
-
+      xEventGroupClearBits(main_event_group, RFID_flag);
+      Serial.println(card_val);
     }
 
     if(xEventGroupGetBits(main_event_group)&sensors_flag)    //Если сенсоры изменились
