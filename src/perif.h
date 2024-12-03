@@ -68,6 +68,9 @@ uint32_t sens_change;            //знак разницы - приход - 1, �
 
 unsigned int flags;             //Переменная глобальных флагов
 
+byte decode(char);
+char * bin_dec(uint32_t);
+
 void spi_task( void * parameter) 
 {
     SPIClass  spi_1(HSPI), 
@@ -307,11 +310,13 @@ SERIAL_8N2    :020056E26462
 */
 void card_task( void * parameter)
 {
-  static char buff[20], i,j;
+  static char buff[20], i,j,k;
+  char mass[20];
+  uint32_t a,b,c;
 
   
   Serial1.setRxBufferSize(20);
-  Serial1.begin(10000, SERIAL_8N1, 18, 17);
+  Serial1.begin(9600, SERIAL_8N1, 18, 17);
 
   RFID_dat = xQueueCreate(20,5);
   
@@ -322,21 +327,67 @@ void card_task( void * parameter)
       i=0;
       vTaskDelay(100); 
 
-      Serial.println("Данные карты: ");
+      //Serial.println("Данные карты: ");
       card_val.clear();
-      while(Serial1.available())
+      a=0;
+      while(Serial1.available())        //Прием
       {
-        j = Serial1.read();//
-        buff[i] = j;
-        if(i)
-        card_val+=j;
+        j = Serial1.read();
+        card_val+=j;    
+        /**/    
+        if(i>0)
+          buff[i-1] = decode(j);        //Декодирование
         i++;
       }
-      buff[i]=0;
-        xQueueSendToBack(RFID_dat, &buff[0], 100);
-        xEventGroupSetBits(main_event_group, RFID_flag);        
-        Serial.println(card_val); 
+
+      for(j=0;j<i-1;j+=2)             //Получение номера в формате HEX
+      {
+        mass[j/2]=((buff[j]&0x0f)<<4)|(buff[j+1]&0x0f);
       }
+       
+      a = mass[2]<<16;
+      a |= mass[3]<<8;
+      a |= mass[4];
+      char *p = bin_dec(a);
+
+ 
+        Serial.println(a, HEX);
+        Serial.println(a, DEC);
+        Serial.println();
+/*
+        xQueueSendToBack(RFID_dat, &buff[0], 100);
+        xEventGroupSetBits(main_event_group, RFID_flag);
+        b = 0;    //Фасилити
+        c=0;      //Номер карты
+        j=0; k=0;
+
+        Serial.println("");
+        Serial.println("card_val()");
+        Serial.println(card_val.c_str());
+
+      for(i=0;i<40;i++)
+      {
+        if((i==0)||((i%5)>0))
+        {
+          if(i<31)
+          {
+            if(a&0x1)
+              b|=1;
+              b<<= 1;
+          }else{
+            if(a&0x1)
+              c|=1;
+              c<<=1;
+          }        
+        }
+            a>>=1;          
+        }        
+        Serial.println(""); 
+        Serial.println("Фасилити: "); 
+        Serial.println(b, BIN);        
+        Serial.println("Номер: "); 
+        Serial.println(c, BIN);*/        
+    }
       vTaskDelay(5);  
   }
 }
@@ -382,10 +433,72 @@ void rs232_task(void *plParametrs)
   }
 }
 
+byte decode(char val)
+{
+  if((val>=0x30)&&(val<=0x39))
+    return val&0x0f;
 
+  if(val=='a')
+    return 0xa ;
+  if(val=='b')
+    return 0xb ;
+  if(val=='c')
+    return 0xc ;
+  if(val=='d')
+    return 0xd ;
+  if(val=='e')
+    return 0xe ;
+  if(val=='f')
+    return 0xf;
 
+  if(val=='A')
+    return 0xa ;
+  if(val=='B')
+    return 0xb ;
+  if(val=='C')
+    return 0xc ;
+  if(val=='D')
+    return 0xd ;
+  if(val=='E')
+    return 0xe ;
+  if(val=='F')
+    return 0xf;
+  return 0;
+}
 
+char * bin_dec(uint32_t val)
+{
+  const uint32_t bb[] = {1000000000, 100000000, 10000000, 
+                      1000000, 100000, 10000, 1000, 100,
+                       10, 1};
+  static char mass[11];
+  char* p=NULL;
+  int i,j=0;
+  bool flag = false;
 
+  for(i=0;i<10;i++)
+  {
+    if(val/bb[i])
+    {
+      flag=true;
+      mass[i] = val/bb[i];
+      val%=bb[i];
+      j++;
+    }
+
+    if(flag)
+      {
+        mass[i] |= 0x30;
+        Serial.print(mass[i]);
+        Serial.print(" ");
+      }
+  }
+        Serial.println("");
+    if(j)
+      p = &mass[0];
+
+    return p;  
+}
 
 
 

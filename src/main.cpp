@@ -93,13 +93,21 @@ void setup()
 
 void loop()
 {
-  if(x>500)
+  byte i[5],j,k[5];
+
+  if(x>2000)
   {
     x=0;
     Serial.println("Размер кучи, байт: ");
     Serial.println(heap_caps_get_free_size(MALLOC_CAP_8BIT));
   }
   //x++;
+  if(Serial.available())
+  {
+    i[0] = Serial.read();
+    sscanf((const char*)i, "%x", k);
+    Serial.println(k[0], HEX);
+  }
   delay(1);
 }
 
