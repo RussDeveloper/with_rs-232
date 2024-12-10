@@ -26,9 +26,10 @@ extern EventGroupHandle_t main_event_group;
 
 #define FORMAT_SPIFFS_IF_FAILED true
 // Not sure if NetworkClientSecure checks the validity date of the certificate.
-// Setting clock just to be sure...
+// Setting clock just to be sure...192.168.0.7
 void setClock() {
   configTime(0, 0, "pool.ntp.org");
+  //configTime(0, 0, "192.168.0.7");
 
   Serial.print(F("Waiting for NTP time sync: "));
   time_t nowSecs = time(nullptr);
@@ -61,6 +62,7 @@ byte wifi_reader()
   if(EEPROM.read(0)>0)
   {
     EEPROM.end();
+    Serial.println("EEPROM is empty");
     return 0;
   }
 
@@ -69,15 +71,7 @@ byte wifi_reader()
   l_serv_len =  EEPROM.read(3);
   p_serv_len =  EEPROM.read(4);
   t_serv_len =  EEPROM.read(5);
-/*
-  Serial.println("Дескриптор массива:");
-  
-  Serial.println(ssid_len);  
-  Serial.println(parol_len);  
-  Serial.println(l_serv_len);  
-  Serial.println(p_serv_len);  
-  Serial.println(t_serv_len);  
-*/
+
   j=6;
   for(i=0;i<ssid_len;i++)           //Логин сети
   {
@@ -119,14 +113,15 @@ byte wifi_reader()
   buff[i]=0;
   token_serv = String(buff);
 
-  /*
- // wifi_ssid.c_str();
+
+
   Serial.println("Логин :");
   Serial.println(wifi_ssid);
-    //Serial.println("");
+    Serial.println("");
   Serial.println("Пароль:");
   Serial.println(wifi_parol);
-    //Serial.println("");
+    Serial.println("");
+   /*   
   Serial.println("Логин сервера:");
   Serial.println(login_serv);
     //Serial.println("");
@@ -157,6 +152,8 @@ byte wifi_saver()
     tme=0;
   }else{
     tme++;
+    if(tme%100)
+      Serial.print("Wait");
   }
 
   if(tme>100)        //Действия при удержании кнопки
@@ -262,14 +259,8 @@ void STA_Task( void *pvParameters )
   setClock();
 
   Serial.println("STA_Task запущена");
-/*
-  File u_list = SPIFFS.open("/list_users_1.txt","w", true);
-
-  u_list.write(10);
-   u_list.close();
-*/
   FS _fs(SPIFFS);
-
+/*
   File root = _fs.open("/");
   if (!root) {
     Serial.println("- failed to open directory");
@@ -285,10 +276,10 @@ void STA_Task( void *pvParameters )
     if (file.isDirectory()) {
       Serial.print("  DIR : ");
       Serial.println(file.name());
-      /*
+      
       if (levels) {
         listDir(fs, file.path(), levels - 1);
-      }*/
+      }
     } else {
       Serial.print("  FILE: ");
       Serial.print(file.name());
@@ -297,7 +288,7 @@ void STA_Task( void *pvParameters )
     }
     file = root.openNextFile();
   }
-
+*/
 
   //String srt = SPIFFS.
  // u_list.close();
@@ -310,7 +301,7 @@ void STA_Task( void *pvParameters )
        { 
           digitalWrite(GREEN, HIGH); 
           wifi_saver();
-          http_master();
+          //http_master();
            xEventGroupSetBits(main_event_group, wifi_flag);
        }else
         {

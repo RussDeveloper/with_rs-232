@@ -17,7 +17,8 @@ String getToken_req1("{\n\"Login\": \"test\",\n\"Password\": \"test\"\n}");
 byte server1[] = { 192, 168, 0, 26 };
 
 String token, r_login;
-JsonDocument card_list, doc;
+JsonDocument card_list,       //Список карт 
+              doc;
 
 bool get_token(void);
 JsonDocument get_card_list(void);

@@ -7,7 +7,7 @@
 #include "SPIFFS.h"
 #include "AT_func.h"
 #include "general.h"
-//#include "STA_func.h"
+#include "brige.h"
 //#include "globals.h"
 /**/
 EventGroupHandle_t main_event_group;
@@ -15,6 +15,8 @@ EventGroupHandle_t main_event_group;
 int x;
 const char* assid = "ESP32 WiFI AP";
 const char* asecret = "00000000";
+
+void read_file(const char*);
 
 TaskHandle_t  Task1 = NULL,
               Task2 = NULL,
@@ -28,17 +30,31 @@ TaskHandle_t  Task1 = NULL,
 #define  GREEN 6
 
 void init_all();
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
+
+JsonDocument t1, t2;
+
 
 void setup() 
 {
   init_all();
+  String str;  
+  char p1[10];
+  sens_buff[0] = 0x10;
+  sens_buff[2] = 0x20;  
 
 
-/*
-  digitalWrite(GREEN, 1);
-  delay(200);
-  digitalWrite(GREEN, 0);
-*/
+  t1["id"] = "126";  
+  JsonArray msk = t1["mask"].to<JsonArray>();
+  for(i=0;i<50;i++)
+  {
+    sprintf(p1,"%u", sens_buff[i]);   //"%u" - десятичное число без знака
+                                      //"%х - шестнадцатеричное число без знака"
+    msk.add(p1);
+}
+  t1["tool_light"] = "1";
+  t1["shelf_light"] = "2";
+
     //Создаем задачу, которая будет выполняться на ядре 1 с наивысшим приоритетом (1)
   /*  */ 
   xTaskCreatePinnedToCore( AT_Task,    // Функция задачи. 
@@ -93,7 +109,7 @@ void setup()
 
 void loop()
 {
-  byte i[5],j,k[5];
+  int i[5],j,k[5];
 
   if(x>2000)
   {
@@ -102,11 +118,52 @@ void loop()
     Serial.println(heap_caps_get_free_size(MALLOC_CAP_8BIT));
   }
   //x++;
+  /**/
   if(Serial.available())
   {
-    i[0] = Serial.read();
-    sscanf((const char*)i, "%x", k);
-    Serial.println(k[0], HEX);
+    j = Serial.read();
+    Serial.println(j, HEX);   
+
+    switch (j)
+    {
+    case '1':{
+      Serial.print("add_tool(t);  ");
+      Serial.println(add_tool(t1));
+            Serial.print("add_user(129);  ");
+      Serial.println(add_user(String("129")));
+      }
+      break;
+    case '2':{read_file("/list_users.txt");}
+      break;
+    case '3':{read_file("/tools/126.txt");}
+      break;
+    case '4':{
+      Serial.println("SPIFFS.remove(\"/tool_list.txt\")");
+      Serial.println(SPIFFS.remove("/tool_list.txt"));
+      }
+      break;
+    case '5':{
+      Serial.println("Просмотр t1");
+      serializeJson(t1, Serial);
+      Serial.println("t1.nesting()");
+      Serial.println(t1.nesting());
+      }
+      break;
+    case '6':{
+      listDir(SPIFFS, "/tools", 0);
+      }
+      break;
+    case '7':{
+      listDir(SPIFFS, "/users", 0);
+      }
+      break;
+   case '8':{
+        del_tool(String("126"));
+        del_user(String("129"));
+      }
+      break;
+    }
+    j=0;
   }
   delay(1);
 }
@@ -147,4 +204,85 @@ void init_all()
   server.begin();
  
 }
+
+void read_file(const char* path)
+{
+  int i=0;
+
+  File file = SPIFFS.open(path);
+
+  while(i<5)
+  {
+    if(!file)
+    {
+      file = SPIFFS.open(path);
+      Serial.print("Open :");
+      Serial.println(path); 
+      delay(500);  
+    }else{i=5;}
+  }
+  
+  Serial.println(path); 
+
+  while(file.available())
+    Serial.write(file.read());
+
+  file.close();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
+  Serial.printf("Listing directory: %s\r\n", dirname);
+
+  File root = fs.open(dirname);
+  if (!root) {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println(" - not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+      if (levels) {
+        listDir(fs, file.path(), levels - 1);
+      }
+    } else {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("\tSIZE: ");
+      Serial.println(file.size());
+    }
+    file.close();
+    file = root.openNextFile();
+  }
+  root.close();
+  file.close();
+}
+
+
+
+
+
+
+
+
 

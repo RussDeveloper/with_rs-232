@@ -29,13 +29,20 @@ bool lock;
 
 typedef struct
 {
-  String name;
+  String id;
   String mask;
   String tool_light;
   String shelf_light;
 }tool_form;
 
-tool_form tool[50];
+//tool_form tool[50];
+
+JsonDocument tool;
+
+int add_tool(JsonDocument);
+int del_tool(JsonDocument);
+int add_user(String);
+int del_user(String);
 
 void del(int val)
 {while(val--);}
@@ -53,26 +60,8 @@ void general_task( void * pvParameters)
   File t_list = SPIFFS.open("/tool_list.txt");
   
   // Номер в списке - "0005694052"
-/*
-    if((!u_list)||(!t_list)){
-         Serial.println("Ошибка отрытия файла со списком карт");
-        while(1){}
-              }
-*/
-    
-         /*     
-       list_size = file.size();
-      for(i=0;i<list_size;i++)            //Перегрузка в оперативу
-      {
-        //p[i] = file.read();
-        //p++;
-        list_str += file.read();
-      }
 
-      JsonDocument doc;
-      //DeserializationError err = deserializeJson(doc, list_str);
-      DeserializationError err = deserializeJson(doc, file);
-
+ /* 
       bool ser_flag = true;
       if(err == DeserializationError::Ok)
       {ser_flag = false;}
@@ -100,15 +89,22 @@ void general_task( void * pvParameters)
 
     if(xEventGroupGetBits(main_event_group)&RFID_flag)    //Если RFID_flag считан
     {
-      serializeJson(card_list, list_card);
-      if((list_card.indexOf("0005694052")!=-1)&&(lock_timer==0))             //фиксация совпадения карты
+      serializeJsonPretty(card_list, list_card);
+      if((list_card.indexOf(card_val)!=-1))//&&(lock_timer==0))             //фиксация совпадения карты
       {
-        card_list.clear();
+        //card_list.clear();
         lock_timer = 60*100;                              //При совпадении карты ящик открыт минуту
-        
+        Serial.println("Доступ открыт");
       }
+        else{
+          Serial.println("Нет доступа");
+          Serial.println(list_card);
+          Serial.println(card_val);
+        }
       xEventGroupClearBits(main_event_group, RFID_flag);
-      Serial.println(card_val);
+      
+      Serial.println("card_list.as<int>()");
+      Serial.println(card_list.as<String>());
     }
 
     if(xEventGroupGetBits(main_event_group)&sensors_flag)    //Если сенсоры изменились
@@ -224,6 +220,198 @@ void general_task( void * pvParameters)
   }
 }
 
+int add_tool(JsonDocument t)
+{
+  String str;
+  bool seach = false;
+
+    File root = SPIFFS.open("/tools");
+    File file = root.openNextFile();
+
+    str = t["id"].as<String>(); 
+    str+= ".txt";
+
+    while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      //str=file.name();
+
+      if(str==file.name())
+      {
+        seach=true;
+        Serial.println("Инструмент с таким номеров уже существует...");
+        file.close();
+        root.close();
+        return 1;
+      }
+      //str.clear();
+      file.close();
+      file = root.openNextFile();
+    }
+      str.clear();
+      file.close();
+      root.close(); 
+
+      str+= "/tools/";
+      str+=t["id"].as<String>();
+      str+= ".txt";
+      file = SPIFFS.open(str.c_str(), "w", true);
+
+      if(!file)
+      {
+        Serial.println("Не удалось создать файл");
+        file.close();
+        return 2;
+      }
+
+      serializeJson(t, file);
+      file.close();
+      return 0;
+}
+
+int add_tool1(JsonDocument t)
+{
+  File t_list1  = SPIFFS.open("/tool_list.txt");
+
+      if(!t_list1){
+         Serial.println("В функции \"add_tool\" не открылся файл \"tool_list.txt \"");
+         t_list1.close();
+         return 1;
+              }
+
+    DeserializationError err = deserializeJson(tool, t_list1);
+
+    if((err!= DeserializationError::Ok)&&(err!= DeserializationError::EmptyInput))
+    {
+      Serial.println("В функции \"add_tool\" ошибка десериализации");
+      t_list1.close();
+      return 2;
+    }
+
+  if(tool[t["id"]].is<int>())
+  {
+     Serial.println("В функции \"add_tool\" инструмент с таким id уже существует");
+     t_list1.close();
+      return 3;
+  }
+
+  tool["id"] = t["id"];
+  tool["id"]["mask"] = t["mask"];
+  tool["id"]["tool_light"] = t["tool_light"];
+  tool["id"]["shelf_light"] = t["shelf_light"];
+
+  t_list1.close();
+  SPIFFS.remove("/tool_list.txt");
+  
+  t_list1  = SPIFFS.open("/tool_list.txt", "w", true);
+
+  serializeJsonPretty(tool, t_list1);
+  t_list1.close();
+}
+
+int del_tool(String _id)
+{
+      File root = SPIFFS.open("/tools");
+    File file = root.openNextFile();
+    bool err = false;
+    String str("/tools/");
+    _id+=".txt";
+
+    while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      if(_id==file.name())
+      {
+        str+=_id;
+        if(!SPIFFS.remove(str))
+        {
+          Serial.println("Удаление инструмента не получилось");
+          err = true;
+        }
+        file.close();
+        root.close();
+        return 0;
+      }
+      //str.clear();
+      file.close();
+      file = root.openNextFile();
+    }
+    if(err)
+      return 2;
+    Serial.println("Такого инструмента нет в базе");
+    return 1;
+}
+
+int add_user(String _id)
+{
+    String str;
+  bool seach = false;
+
+    File root = SPIFFS.open("/users");
+    File file = root.openNextFile();
+
+    _id+= ".txt";
+
+    while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      if(_id==file.name())
+      {
+        seach=true;
+        Serial.println("Пользователь с таким ID уже существует...");
+        file.close();
+        root.close();
+        return 1;
+      }
+      //str.clear();
+      file.close();
+      file = root.openNextFile();
+    }
+      str.clear();
+      file.close();
+      root.close(); 
+
+      str+= "/users/";
+      str+=_id;
+      file = SPIFFS.open(str.c_str(), "w", true);
+
+      if(!file)
+      {
+        Serial.println("Не удалось создать файл");
+        file.close();
+        return 2;
+      }
+      file.close();
+      return 0;
+}
+
+int del_user(String _id)
+{
+      File root = SPIFFS.open("/users");
+    File file = root.openNextFile();
+    bool err = false;
+    String str("/users/");
+    _id+=".txt";
+
+    while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      if(_id==file.name())
+      {
+        str+=_id;
+        if(!SPIFFS.remove(str))
+        {
+          Serial.println("Удаление Пользователя с таким id  не получилось");
+          err = true;
+        }
+        file.close();
+        root.close();
+        return 0;
+      }
+      file.close();
+      file = root.openNextFile();
+    }
+    if(err)
+      return 2;
+    Serial.println("Пользователя с таким id нет в базе");
+    return 1;
+}
 //Сериализация - из JSON в строку, функцию
 //Десериализация - из строки в JSON
 
