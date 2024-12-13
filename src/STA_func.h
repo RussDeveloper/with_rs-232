@@ -299,10 +299,10 @@ void STA_Task( void *pvParameters )
     {
       if(WiFi.status() == WL_CONNECTED) 
        { 
+          xEventGroupSetBits(main_event_group, wifi_flag);
           digitalWrite(GREEN, HIGH); 
           wifi_saver();
-          //http_master();
-           xEventGroupSetBits(main_event_group, wifi_flag);
+          http_master();           
        }else
         {
          digitalWrite(GREEN, LOW); 

@@ -162,6 +162,16 @@ void loop()
         del_user(String("129"));
       }
       break;
+    case '9':{
+        Serial.print(" Список карт: ");
+        Serial.println(read_card_list().as<String>());
+      }
+      break;
+    case '0':{
+        Serial.print(" Удаление папки с пользователями: ");
+        SPIFFS.remove("/users");
+      }
+      break;
     }
     j=0;
   }

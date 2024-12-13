@@ -24,8 +24,11 @@ bool get_token(void);
 JsonDocument get_card_list(void);
 JsonDocument set_cust_action(String);
 int box_action(JsonDocument);
+extern void card_list_compare(JsonDocument);
 
 String http_request(String, String, String);
+void card_list_compare_old(JsonDocument);
+
 
 void http_master()
 {
@@ -42,43 +45,12 @@ void http_master()
     {
       card_list.clear();
       card_list = get_card_list();
-      
-      if(!card_list.isNull())
-      {
-        i = serializeJson(card_list, val);
-
-        if(i)              //Получение списка карт
-          {
-           File u_list = SPIFFS.open("/list_users.txt");
-            DeserializationError error = deserializeJson(doc, u_list);
-            if(error!= DeserializationError::Ok)
-              Serial.println("Ошибка десериализации файла из флешь памяти");
-            if(doc.as<String>()!=card_list.as<String>())  //Если присланный список и сохраненный не совпадают - перезаписать
-            {
-              u_list.close();
-              SPIFFS.remove("/list_users.txt");
-              u_list = SPIFFS.open("/list_users.txt","w",true);
-              serializeJson(card_list, u_list);
-              u_list.close();
-              u_list = SPIFFS.open("/list_users.txt");
-              doc.clear();
-              deserializeJson(doc, u_list);
-              Serial.println("Сохраненный список : ");
-              Serial.println(doc.as<String>());              
-            }else
-              Serial.println("Списки совпадают");
-      }else
-      Serial.println("Запрос на карты не верен");
+      card_list_compare(card_list);
     }
-
-    
-  }
-  tmr=0;
+    tmr=0;
 
   }
    tmr++; 
-
-
 }
 
 bool get_token(void)
@@ -315,7 +287,40 @@ int box_action(JsonDocument action)
       else return 1;
 }
 
+void card_list_compare_old(JsonDocument doc1)
+{
+  String val;
+  int i;
 
+        if(!doc1.isNull())
+      {
+        i = serializeJson(doc1, val);
+
+        if(i)              //Получение списка карт
+          {
+           File u_list = SPIFFS.open("/list_users.txt");
+            DeserializationError error = deserializeJson(doc, u_list);
+            if(error!= DeserializationError::Ok)
+              Serial.println("Ошибка десериализации файла из флешь памяти");
+            if(doc.as<String>()!=doc1.as<String>())  //Если присланный список и сохраненный не совпадают - перезаписать
+            {
+              u_list.close();
+              SPIFFS.remove("/list_users.txt");
+              u_list = SPIFFS.open("/list_users.txt","w",true);
+              serializeJson(doc1, u_list);
+              u_list.close();
+              u_list = SPIFFS.open("/list_users.txt");
+              doc.clear();
+              deserializeJson(doc, u_list);
+              Serial.println("Сохраненный список : ");
+              Serial.println(doc.as<String>());              
+            }else
+              Serial.println("Списки совпадают");
+      }else
+      Serial.println("Запрос на карты не верен");
+    }
+
+}
 
 
 

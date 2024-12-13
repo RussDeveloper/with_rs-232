@@ -43,6 +43,8 @@ int add_tool(JsonDocument);
 int del_tool(JsonDocument);
 int add_user(String);
 int del_user(String);
+JsonDocument  read_card_list();
+void card_list_compare(JsonDocument);
 
 void del(int val)
 {while(val--);}
@@ -412,6 +414,129 @@ int del_user(String _id)
     Serial.println("Пользователя с таким id нет в базе");
     return 1;
 }
+
+JsonDocument  read_card_list()
+{
+  String str;
+  JsonDocument doc;
+  JsonArray arr = doc.as<JsonArray>();
+  int i,j;
+
+  File root = SPIFFS.open("/users");
+  File file = root.openNextFile();
+
+  while(file)
+  {
+    str = file.name();
+ 
+    i = str.indexOf(".txt");
+    str.remove(i);
+     //Serial.println(str);  
+     doc.add(str);
+    file = root.openNextFile();
+  }
+  //Serial.println(doc.size());
+  return doc;
+}
+
+
+
+void card_list_compare(JsonDocument t)
+{
+  File root = SPIFFS.open("/users");
+  int i=0,j;
+    bool flag = true;
+  JsonDocument tmp;     //Список ID, хранящихся во флеши
+  String str;
+
+  if(!root)
+  {
+    Serial.println("Сравнение не выполнено, папка не открылась");
+    root.close();
+    return;
+  }
+
+      File file = root.openNextFile();
+
+  while(file)                                     //получение списка карт
+  {
+    str = file.name();
+    i = str.length();
+    if(i>4)
+      {i-=4;}
+      else{
+        Serial.println("Ошибка в имени пользователя");
+      }
+      str.remove(i);    //Получение id пользователя из имени файла
+    tmp.add(str);
+    file.close();
+    file = root.openNextFile();
+  }
+
+  Serial.println("Список пользователей в базе: " + tmp.as<String>());
+  Serial.println("Принятый писок пользователей: " + t.as<String>());
+  
+  flag=true;
+  for(i=0;i<t.size();i++)
+  {
+    for(j=0;j<tmp.size();j++)
+    {
+           if(t[i].as<String>()==tmp[j].as<String>()) //Если полученный номер совпадает хотя бы 
+          {                                           //с одним имеющимся - продолжать поиск
+            flag = false;
+          }
+    }      
+      if(flag)                                      //Если Данного ID нет в списке сохраненных
+      {                                             // - добавить
+        Serial.println("Добавить пользователя с ID - "+t[i].as<String>());
+        add_user(t[i].as<String>());
+      }
+        flag=true;
+    
+  }
+      
+  flag=true;
+  for(i=0;i<tmp.size();i++)
+  {
+    for(j=0;j<t.size();j++)
+    {
+           if(t[j].as<String>()==tmp[i].as<String>()) //Если имеющийся номер совпадает хотя бы 
+          {                                           //с одним полученным - продолжать поиск
+            flag = false;
+          }
+     }     
+      if(flag)                                      //Если Данного ID нет в списке сохраненных
+      {                                             // - добавить
+        Serial.println("Удалить пользователя с ID - "+tmp[i].as<String>());
+        del_user(tmp[i].as<String>());
+      }
+        flag=true;
+  }
+  /*    
+    if(flag)                                      //Если размеры совпадают - сравнить номера
+    {
+      for(i=0;i<t.size();i++)
+      {
+        flag=false;
+        for(j=0;j<tmp.size();j++)
+        {
+          if(t[i].as<String>()==tmp[j].as<String>()) //Если полученный номер совпадает хотя бы 
+          {                                           //с одним имеющимся - продолжать поиск
+            flag = true;
+            break;
+          }
+          }      
+      } 
+
+
+      Serial.println("Списки не совпали");
+    }else{
+          Serial.println("Списки совпали");  
+          }
+*/          
+  Serial.println("Сравнение выполнено");
+}
+
 //Сериализация - из JSON в строку, функцию
 //Десериализация - из строки в JSON
 
