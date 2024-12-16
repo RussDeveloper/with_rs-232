@@ -18,6 +18,8 @@
 extern EventGroupHandle_t main_event_group;
 extern com_drive rs_232;
 extern JsonDocument card_list;
+       JsonDocument card_list_flash;
+
 extern char load_buff[5*num_nodules];
 extern String card_val;
 
@@ -52,7 +54,7 @@ void del(int val)
 void general_task( void * pvParameters)
 {
   int list_size,i,j,k;
-  char *p;
+  char *p, mass[50];
   String list_str, list_card;
   JsonDocument t_doc;
   extern JsonDocument card_list;
@@ -87,6 +89,14 @@ void general_task( void * pvParameters)
   {
     if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
     {
+    }else{
+      if(card_list.isNull())                              //Если выключен - берем список из флеши
+      {
+        card_list=read_card_list();
+        Serial.println("Работа в автономном режиме. Список крат:   ");
+        Serial.println(card_list.as<String>());
+      }
+
     }
 
     if(xEventGroupGetBits(main_event_group)&RFID_flag)    //Если RFID_flag считан
@@ -117,11 +127,6 @@ void general_task( void * pvParameters)
       xEventGroupClearBits(main_event_group, sensors_flag);
       for(i=0;i<50;i++)
       {
-        /*
-          Serial.print(sens_delta[i], HEX);
-          sens_delta[i]=0;
-          delay(1);
-          */
         if(sens_delta[i])
         {
           if(sens_change)
@@ -179,32 +184,49 @@ void general_task( void * pvParameters)
     }
     */
     String msg;
-    if(rs_232.rx_flag)                  //Сообщение от планшета
+   
+   if(xEventGroupGetBits(main_event_group)&rs232_flag)              //Сообщение от планшета
     {
-      //deserializeJson(rs_232.reseive, msg);
-      //msg.begin(rs_232.reseive["command"]);
-      //if(rs_232.reseive["command"].is<int>())
-      //{
-        const char *ptr = rs_232.reseive["command"];
-        if(ptr){
-          msg += ptr;
+        if(!rs_232.reseive.isNull()){
+          msg += rs_232.reseive["command"].as<String>();
           Serial.println("general_task");
           Serial.println(msg);
           //delete ptr;
-            if(msg =="start")  
+            if(msg =="start")                   //При добавлении инструмента - сохраняется битовая маска до добавления
             {
-              
+              for(i=0;i<50;i++)
+                {
+                  mass[i] = sens_buff[i];
+                  sens_delta[i] = 0;
+                }
+
+              rs_232.rx_flag=false;
+              rs_232.reseive.clear();
             }
             if(msg =="end")  
             {
+              JsonArray arr = t_doc["mask"].to<JsonArray>();
+              int mod=0;
+              for(i=0;i<50;i++)
+              {
+                arr.add((unsigned char)sens_delta[i]);
+                if((sens_delta>0)&&(mod==0))
+                  mod = i/5;
+              }
+
+              t_doc["cell"] = mod;
+              t_doc["id"] = rs_232.reseive["value"];
+              JsonDocument doc2;
+              doc2[rs_232.reseive["value"]] = t_doc;
+              add_tool(t_doc);
+
                 rs_232.transmit["command"] = "ok";
-                rs_232.transmit["id"] = "1234";
+                String val =  rs_232.reseive["value"];
+                rs_232.transmit["id"] = val;
                 rs_232.tx_flag = true;
+
+
             }
-            if(msg =="ok")  
-            {
-              
-            } 
             if(msg =="light")  
             {
               
@@ -213,8 +235,8 @@ void general_task( void * pvParameters)
             msg.clear();
         }
         else{ Serial.println("Json опять мозги ебет");}
-        //}
-      //if( ==)
+
+        xEventGroupClearBits(main_event_group, rs232_flag);
       rs_232.rx_flag = 0;
     }
     delay(10);
@@ -419,7 +441,7 @@ JsonDocument  read_card_list()
 {
   String str;
   JsonDocument doc;
-  JsonArray arr = doc.as<JsonArray>();
+  //JsonArray arr = doc.as<JsonArray>();
   int i,j;
 
   File root = SPIFFS.open("/users");
@@ -435,18 +457,18 @@ JsonDocument  read_card_list()
      doc.add(str);
     file = root.openNextFile();
   }
+  root.close();
+  file.close();
   //Serial.println(doc.size());
   return doc;
 }
-
-
 
 void card_list_compare(JsonDocument t)
 {
   File root = SPIFFS.open("/users");
   int i=0,j;
     bool flag = true;
-  JsonDocument tmp;     //Список ID, хранящихся во флеши
+  //JsonDocument tmp;     //Список ID, хранящихся во флеши
   String str;
 
   if(!root)
@@ -458,7 +480,10 @@ void card_list_compare(JsonDocument t)
 
       File file = root.openNextFile();
 
-  while(file)                                     //получение списка карт
+  if(file)                      
+    card_list_flash.clear();
+
+ while(file)                                     //получение списка карт
   {
     str = file.name();
     i = str.length();
@@ -468,20 +493,24 @@ void card_list_compare(JsonDocument t)
         Serial.println("Ошибка в имени пользователя");
       }
       str.remove(i);    //Получение id пользователя из имени файла
-    tmp.add(str);
+    //tmp.add(str);
+    card_list_flash.add(str);
     file.close();
     file = root.openNextFile();
   }
 
-  Serial.println("Список пользователей в базе: " + tmp.as<String>());
+  //Serial.println("Список пользователей в базе: " + tmp.as<String>());
+  Serial.println("Список пользователей в базе: " + card_list_flash.as<String>());
   Serial.println("Принятый писок пользователей: " + t.as<String>());
   
   flag=true;
   for(i=0;i<t.size();i++)
   {
-    for(j=0;j<tmp.size();j++)
+ //   for(j=0;j<tmp.size();j++)
+    for(j=0;j<card_list_flash.size();j++)
     {
-           if(t[i].as<String>()==tmp[j].as<String>()) //Если полученный номер совпадает хотя бы 
+           //if(t[i].as<String>()==tmp[j].as<String>()) //Если полученный номер совпадает хотя бы 
+           if(t[i].as<String>()==card_list_flash[j].as<String>()) //Если полученный номер совпадает хотя бы 
           {                                           //с одним имеющимся - продолжать поиск
             flag = false;
           }
@@ -496,19 +525,21 @@ void card_list_compare(JsonDocument t)
   }
       
   flag=true;
-  for(i=0;i<tmp.size();i++)
+  //for(i=0;i<tmp.size();i++)
+  for(i=0;i<card_list_flash.size();i++)
   {
     for(j=0;j<t.size();j++)
     {
-           if(t[j].as<String>()==tmp[i].as<String>()) //Если имеющийся номер совпадает хотя бы 
+           //if(t[j].as<String>()==tmp[i].as<String>()) //Если имеющийся номер совпадает хотя бы 
+           if(t[j].as<String>()==card_list_flash[i].as<String>()) //Если имеющийся номер совпадает хотя бы 
           {                                           //с одним полученным - продолжать поиск
             flag = false;
           }
      }     
       if(flag)                                      //Если Данного ID нет в списке сохраненных
       {                                             // - добавить
-        Serial.println("Удалить пользователя с ID - "+tmp[i].as<String>());
-        del_user(tmp[i].as<String>());
+        Serial.println("Удалить пользователя с ID - "+card_list_flash[i].as<String>());//tmp[i].as<String>());
+        del_user(card_list_flash[i].as<String>());///(tmp[i].as<String>());
       }
         flag=true;
   }

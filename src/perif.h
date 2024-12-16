@@ -242,7 +242,7 @@ void spi_task( void * parameter)
               sens_change|= 1<<(i/5);                   //разница является либо установкой, либо убытием
           }
         }
-          sens_delta[i] = k;
+          sens_delta[i] |= k;
           k=0;
         if(spi2_buff[0][i]!=spi2_buff[1][i])
         {
@@ -261,7 +261,7 @@ void spi_task( void * parameter)
             sens_change|= 1<<((i/5)+5);               //разница является либо установкой, либо убытием
           }
         }
-          sens_delta[i+num_cells] = k;
+          sens_delta[i+num_cells] |= k;
           /*
           if(flag)            //В зависимости от того, какой буфер использовался
           {                   //разница является либо установкой, либо убытием
@@ -373,18 +373,16 @@ void rs232_task(void *plParametrs)
     j = Serial2.available();
     if(j)
     {
+      delay(5);
       Serial2.readBytes(serial_buff, j); 
       str = serial_buff;    
       if(deserializeJson(rs_232.reseive, str) == DeserializationError::Ok)
         {rs_232.rx_flag = true;
           Serial.println("DeserializationError::Ok");
-        
-        const char *pp = rs_232.reseive["command"];
-        
-      //Serial.println(str);
-      Serial.println(pp);
-      }
-      j=0;
+          Serial.println(rs_232.reseive.as<String>());          
+          xEventGroupSetBits(main_event_group, rs232_flag);
+        }
+        j=0;
     }
     
     if(rs_232.tx_flag)

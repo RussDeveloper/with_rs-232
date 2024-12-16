@@ -44,7 +44,7 @@ void setup()
   sens_buff[2] = 0x20;  
 
 
-  t1["id"] = "126";  
+
   JsonArray msk = t1["mask"].to<JsonArray>();
   for(i=0;i<50;i++)
   {
@@ -54,6 +54,13 @@ void setup()
 }
   t1["tool_light"] = "1";
   t1["shelf_light"] = "2";
+/*
+  msk = t1["id"].to<JsonArray>();
+  msk.add("321");
+  msk.add("321");
+  msk.add("321");
+*/
+  t2["id"] = t1;
 
     //Создаем задачу, которая будет выполняться на ядре 1 с наивысшим приоритетом (1)
   /*  */ 
@@ -109,7 +116,7 @@ void setup()
 
 void loop()
 {
-  int i[5],j,k[5];
+  int i[5],j,k[5],t;
 
   if(x>2000)
   {
@@ -123,6 +130,15 @@ void loop()
   {
     j = Serial.read();
     Serial.println(j, HEX);   
+  }
+    switch (t)
+    {
+    case '1':{
+
+    }
+      break;
+
+    }
 
     switch (j)
     {
@@ -143,10 +159,10 @@ void loop()
       }
       break;
     case '5':{
-      Serial.println("Просмотр t1");
-      serializeJson(t1, Serial);
-      Serial.println("t1.nesting()");
-      Serial.println(t1.nesting());
+      Serial.println("Просмотр t2");
+      serializeJson(t2, Serial);
+      Serial.println("t2.nesting()");
+      Serial.println(t2.nesting());
       }
       break;
     case '6':{
@@ -172,9 +188,8 @@ void loop()
         SPIFFS.remove("/users");
       }
       break;
-    }
-    j=0;
   }
+    j=0;  
   delay(1);
 }
 
