@@ -149,13 +149,15 @@ void loop()
       Serial.println(add_user(String("129")));
       }
       break;
-    case '2':{read_file("/list_users.txt");}
+    case '2':{serializeJson(get_users(), Serial);}//read_file("/list_users.txt");}
       break;
-    case '3':{read_file("/tools/126.txt");}
+    case '3':{serializeJson(get_tools(), Serial);}
       break;
     case '4':{
-      Serial.println("SPIFFS.remove(\"/tool_list.txt\")");
-      Serial.println(SPIFFS.remove("/tool_list.txt"));
+      Serial.println("Маска датчиков");
+      for(int f=0;f<50;f++)
+        Serial.print(sens_delta[f], HEX);
+        Serial.println("");
       }
       break;
     case '5':{
@@ -173,19 +175,19 @@ void loop()
       listDir(SPIFFS, "/users", 0);
       }
       break;
-   case '8':{
-        del_tool(String("126"));
-        del_user(String("129"));
+    case '8':{
+        //Serial.println(get_users()["123"].is<int>());
+        Serial.println(get_users().as<String>().indexOf("124"));
       }
       break;
     case '9':{
-        Serial.print(" Список карт: ");
-        Serial.println(read_card_list().as<String>());
+        serializeJson(tool_list, Serial);
       }
       break;
     case '0':{
-        Serial.print(" Удаление папки с пользователями: ");
-        SPIFFS.remove("/users");
+        Serial.println(tool_list.size());
+        for(int r=0;r<tool_list.size();r++)
+        serializeJson(tool_list[r], Serial);
       }
       break;
   }

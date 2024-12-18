@@ -18,6 +18,7 @@ byte server1[] = { 192, 168, 0, 26 };
 
 String token, r_login;
 JsonDocument card_list,       //Список карт 
+
               doc;
 
 bool get_token(void);
@@ -39,13 +40,14 @@ void http_master()
   //Десериализация - из файла/строки в JSON
   if(tmr>1000)
   {
-    get_token();
-    /**/
-    if(token.length()>0)
+    if(get_token())
     {
-      card_list.clear();
-      card_list = get_card_list();
-      card_list_compare(card_list);
+      if(token.length()>0)
+      {
+        card_list.clear();
+        card_list = get_card_list();
+        card_list_compare(card_list);
+      }
     }
     tmr=0;
 

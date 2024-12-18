@@ -39,14 +39,18 @@ typedef struct
 
 //tool_form tool[50];
 
-JsonDocument tool;
+JsonDocument tool,tool_list;
 
 int add_tool(JsonDocument);
-int del_tool(JsonDocument);
+int del_tool(String);
 int add_user(String);
 int del_user(String);
+JsonDocument get_tools();
+String get_tool();                    //если произошлои зменение датчиков - выдает ID инструмента
+JsonDocument get_users();
 JsonDocument  read_card_list();
 void card_list_compare(JsonDocument);
+bool chek_item(JsonDocument, String);
 
 void del(int val)
 {while(val--);}
@@ -56,15 +60,22 @@ void general_task( void * pvParameters)
   int list_size,i,j,k;
   char *p, mass[50];
   String list_str, list_card;
-  JsonDocument t_doc;
+  JsonDocument t_doc, tools;
   extern JsonDocument card_list;
   //JsonArray u_arr = card_list.as<JsonArray>();
 
   //Запрос данных из файлов
   File t_list = SPIFFS.open("/tool_list.txt");
   
-  // Номер в списке - "0005694052"
-
+  tool_list = get_tools();        //список инструментов
+  Serial.println("//список инструментов");
+  Serial.println(tool_list.size());
+  for(i=0;i<tool_list.size();i++)
+  {
+    t_doc = tool_list[i];
+    serializeJson(t_doc, Serial);
+    t_doc.clear();
+  }
  /* 
       bool ser_flag = true;
       if(err == DeserializationError::Ok)
@@ -84,7 +95,7 @@ void general_task( void * pvParameters)
 
       j = doc.size();
       */
-      //Данные из файла переведены в массив строк
+
   for(;;)
   {
     if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
@@ -125,6 +136,8 @@ void general_task( void * pvParameters)
       delay(50);
       digitalWrite(RED,LOW);
       xEventGroupClearBits(main_event_group, sensors_flag);
+      
+      /*
       for(i=0;i<50;i++)
       {
         if(sens_delta[i])
@@ -145,8 +158,9 @@ void general_task( void * pvParameters)
           sens_delta[i]=0;
           }
         }
-      }  
-      //Serial.println("");   
+        
+      }  */
+     
     }
 /**/
     i=0;
@@ -227,7 +241,18 @@ void general_task( void * pvParameters)
 
 
             }
-            if(msg =="light")  
+            if(msg =="delete")  
+            {
+              if(del_tool(rs_232.reseive["value"]))
+              {
+                rs_232.transmit.clear();
+                rs_232.transmit["command"] = "delete";
+                rs_232.transmit["value"] = "ok";
+                rs_232.tx_flag = true;
+              }
+
+            }
+           if(msg =="light")  
             {
               
             }
@@ -453,7 +478,7 @@ JsonDocument  read_card_list()
  
     i = str.indexOf(".txt");
     str.remove(i);
-     //Serial.println(str);  
+     Serial.println(str);  
      doc.add(str);
     file = root.openNextFile();
   }
@@ -568,6 +593,64 @@ void card_list_compare(JsonDocument t)
   Serial.println("Сравнение выполнено");
 }
 
+JsonDocument get_tools()
+{
+  JsonDocument doc, temp;
+
+      File root = SPIFFS.open("/tools");
+       File file = root.openNextFile();
+
+      while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      DeserializationError err = deserializeJson(temp, file);
+      if(err!= DeserializationError::Ok)
+        Serial.println("При чтении списка инструментов произошла ошибка десериализации");
+      doc[file.name()] = temp;
+      
+      temp.clear();
+      file.close();
+      file = root.openNextFile();
+    }
+  return doc;
+}
+
+JsonDocument get_users()
+{
+  JsonDocument doc, temp;
+  String str;
+  int i,j;
+
+      File root = SPIFFS.open("/users");
+       File file = root.openNextFile();
+
+       if(root)
+      {
+      while(file)                     //Поверка на наличие уже созданных файлов
+      {
+        str = file.name();
+        i = str.indexOf(".txt");
+        str.remove(i);
+        doc.add(str);        
+        temp.clear();
+        file.close();
+        file = root.openNextFile();
+      }
+      }else
+      {
+        Serial.println("В функции get_users() не удалось открыть папку /users");
+      }
+  return doc;
+}
+
+bool chek_item(JsonDocument dc, String str)
+{
+
+}
+
+String get_tool()
+{
+
+}
 //Сериализация - из JSON в строку, функцию
 //Десериализация - из строки в JSON
 
