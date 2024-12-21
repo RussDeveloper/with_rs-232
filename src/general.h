@@ -46,6 +46,7 @@ int del_tool(String);
 int add_user(String);
 int del_user(String);
 JsonDocument get_tools();
+JsonDocument get_tool_list();
 String get_tool();                    //если произошлои зменение датчиков - выдает ID инструмента
 JsonDocument get_users();
 JsonDocument  read_card_list();
@@ -65,17 +66,11 @@ void general_task( void * pvParameters)
   //JsonArray u_arr = card_list.as<JsonArray>();
 
   //Запрос данных из файлов
-  File t_list = SPIFFS.open("/tool_list.txt");
+  //File t_list = SPIFFS.open("/tool_list.txt");
   
   tool_list = get_tools();        //список инструментов
   Serial.println("//список инструментов");
-  Serial.println(tool_list.size());
-  for(i=0;i<tool_list.size();i++)
-  {
-    t_doc = tool_list[i];
-    serializeJson(t_doc, Serial);
-    t_doc.clear();
-  }
+
  /* 
       bool ser_flag = true;
       if(err == DeserializationError::Ok)
@@ -136,7 +131,107 @@ void general_task( void * pvParameters)
       delay(50);
       digitalWrite(RED,LOW);
       xEventGroupClearBits(main_event_group, sensors_flag);
-      
+
+      JsonDocument list = get_tool_list();
+      tools = get_tools();
+
+      byte match;
+      for(j=0;j<list.size();j++)
+      {
+        t_doc = tools[list[j]];
+        /**/
+        JsonArray msk = t_doc["mask"].as<JsonArray>();
+          match = 0;
+         for(i=0;i<50;i++)
+         {
+          if(msk[i]>0)
+          {
+            //k = msk[i].as<int>();
+            k = msk[i];
+
+            //if(sens_delta[i])
+              //Serial.println(i, DEC);
+            
+          if((k&sens_delta[i])==k)
+          {
+            match|=0x1;
+          }else
+          {
+            match|=0x2;
+          }
+          }
+        }
+       
+        if(match&0x1)
+        {
+          /**/
+          Serial.print("Инструмент: ");
+          Serial.println(t_doc["id"].as<String>());
+         /* Serial.println(sens_change, DEC);*/
+        
+          //if(t_doc["isHere"].as<String>()=="true")
+          if(sens_change>0)
+            Serial.println("Был установлен");
+          //if(t_doc["isHere"].as<String>()=="false")
+          if(sens_change==0)
+            Serial.println("Был взят");
+        }
+
+
+        /*Serial.print(list[j].as<String>()+ "   ");
+        k=0;
+        
+        for(i=0;i<50;i++)
+        {
+
+          if(msk[i]>0)
+          {
+            k++;
+          }
+        }
+        if(k>0)
+        {
+        for(i=0;i<50;i++)
+        {
+          if(msk[i]>0)
+          {
+            if((msk[i]&sens_delta[i])==sens_delta[i])
+            {
+              
+              if(k)
+              {k--;}
+              else
+              {
+                Serial.println("Ошибка маски инструмента");
+                k=0;
+              }
+              
+            }
+          }
+        }
+        }
+        */
+
+      }
+
+      for(i=0;i<50;i++)
+        sens_delta[i] = 0;
+      /*
+            for(i=0;i<50;i++)
+            {
+              if(sens_delta[i])
+              {
+                for(j=0;j<list.size();j++)
+                {
+                  JsonArray mask = t_doc[list[j]]["mask"].as<JsonArray>();
+                    if((mask[i]&sens_delta[i])==sens_delta[i])
+                    {
+
+                    }
+                }
+              }
+            }
+      */      
       /*
       for(i=0;i<50;i++)
       {
@@ -596,6 +691,8 @@ void card_list_compare(JsonDocument t)
 JsonDocument get_tools()
 {
   JsonDocument doc, temp;
+  String str;
+  int i,j;
 
       File root = SPIFFS.open("/tools");
        File file = root.openNextFile();
@@ -605,9 +702,52 @@ JsonDocument get_tools()
       DeserializationError err = deserializeJson(temp, file);
       if(err!= DeserializationError::Ok)
         Serial.println("При чтении списка инструментов произошла ошибка десериализации");
-      doc[file.name()] = temp;
-      
+/**/
+        JsonArray arr = temp["mask"].as<JsonArray>();
+        j=0;
+        for(int r=0;r<50;r++)
+        {
+           i = arr[r];
+           if(i)
+           {
+            j|=0x1;
+            if((i&sens_buff[r])!=i)
+            {
+              j|=0x2;
+            }
+          }
+        }
+        if(j==0x1)
+        {
+          temp["isHere"] = "true";
+        }else{
+          temp["isHere"] = "false";
+        }
+        str = file.name();
+        int t = str.indexOf(".txt");
+        str.remove(t);
+      doc[str] = temp;
+      //Serial.println(str);
       temp.clear();
+      file.close();
+      file = root.openNextFile();
+    }
+  return doc;
+}
+JsonDocument get_tool_list()
+{
+  JsonDocument doc;
+  String str;
+
+      File root = SPIFFS.open("/tools");
+       File file = root.openNextFile();
+
+      while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      str = file.name();
+      int t = str.indexOf(".txt");
+      str.remove(t);
+      doc.add(str);
       file.close();
       file = root.openNextFile();
     }
@@ -644,25 +784,16 @@ JsonDocument get_users()
 
 bool chek_item(JsonDocument dc, String str)
 {
-
+  return true;
 }
 
 String get_tool()
 {
-
+  String str;
+  return str;
 }
 //Сериализация - из JSON в строку, функцию
 //Десериализация - из строки в JSON
-
-
-
-
-
-
-
-
-
-
 
 
 

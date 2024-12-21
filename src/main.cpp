@@ -118,6 +118,8 @@ void loop()
 {
   int i[5],j,k[5],t;
 
+
+
   if(x>2000)
   {
     x=0;
@@ -176,8 +178,16 @@ void loop()
       }
       break;
     case '8':{
-        //Serial.println(get_users()["123"].is<int>());
-        Serial.println(get_users().as<String>().indexOf("124"));
+      t1.clear();
+      t1 = get_tool_list();
+      JsonArray arr = t1.as<JsonArray>();
+        Serial.println("arr.size()");
+        Serial.println(arr.size());
+        for(int r=0;r<arr.size(); r++)
+        {
+          Serial.println(arr[r].as<String>());
+        }
+        //Serial.println(get_users().as<String>().indexOf("124"));
       }
       break;
     case '9':{
@@ -185,9 +195,6 @@ void loop()
       }
       break;
     case '0':{
-        Serial.println(tool_list.size());
-        for(int r=0;r<tool_list.size();r++)
-        serializeJson(tool_list[r], Serial);
       }
       break;
   }
