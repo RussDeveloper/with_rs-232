@@ -91,6 +91,7 @@ bool get_token(void)
             // file found at server
             if (httpCode == HTTP_CODE_OK) {
               String payload = https.getString();
+              if(comment)
               Serial.print(payload);
               if(deserializeJson(doc, payload) == DeserializationError::Ok)
               {
@@ -139,7 +140,7 @@ String http_request(String url,       //URL адрес
                     )
 {
           WiFiClientSecure *STA_client = new  WiFiClientSecure; 
-        bool flag=false;
+        bool flag=false, log = false;
         String responce = "";
     
     if(STA_client)
@@ -147,10 +148,11 @@ String http_request(String url,       //URL адрес
           STA_client->setInsecure();
           
           HTTPClient https;
-      
+          if(log)
           Serial.print("[HTTP] begin...\n");
           https.begin(*STA_client, url);  //HTTP
-      
+
+          if(log)
           Serial.print("[HTTP] POST...\n");
           https.addHeader("Content-Type", "application/json");
           int httpCode = 0;
@@ -162,6 +164,7 @@ String http_request(String url,       //URL адрес
           // httpCode will be negative on error
           if (httpCode > 0) {
             // HTTP header has been send and Server response header has been handled
+            if(log)
             Serial.printf("[HTTP] GET... code: %d\n", httpCode);
       
             // file found at server
@@ -183,7 +186,7 @@ String http_request(String url,       //URL адрес
 JsonDocument get_card_list(void)
 {
           WiFiClientSecure *STA_client = new  WiFiClientSecure; 
-        bool flag=false;
+        bool flag=false, log = false;
         //JsonDocument doc;
         String str, tmp;
         JsonDocument doc;
@@ -198,8 +201,9 @@ JsonDocument get_card_list(void)
 
           //https.setTimeout(100);
           tmp = https->begin(*STA_client, servergetCardList);
-
+          if(log)
           Serial.println("[HTTP] begin...\n");
+          if(log)
           Serial.println(tmp);  //HTTP
 
           https->setAuthorization(token.c_str());
@@ -210,24 +214,29 @@ JsonDocument get_card_list(void)
           // httpCode will be negative on error
           if (httpCode > 0) {
             // HTTP header has been send and Server response header has been handled
+            if(log)
             Serial.printf("[HTTP] GET... code: %d\n", httpCode);
       
             // file found at server
             if (httpCode == HTTP_CODE_OK) {
               String payload = https->getString();
+              if(log){
               Serial.print("Поступившие данные: ");
-              Serial.println(payload);
+              Serial.println(payload);}
               
               if(deserializeJson(doc, payload) == DeserializationError::Ok)
               {
+                if(log){
                 Serial.println("Количество элементов в массиве:");
                 j=doc.size();
-                Serial.println(j);
+                Serial.println(j);}
                 flag=true;
               }else
-                Serial.print(httpCode);
+              { if(log)
+                Serial.print(httpCode);}
             }
           } else {
+            if(log)
             Serial.printf("[HTTP] GET... failed, error: %s\n", https->errorToString(httpCode).c_str());
           }      
           https->end();

@@ -65,11 +65,14 @@ char    spi1_buff[2][110],      //Буферы временного хранен
         *valid_sensors_buff[2]
                         ;
 uint32_t sens_change;            //знак разницы - приход - 1, уход - 0
+uint32_t locks;
 
 unsigned int flags;             //Переменная глобальных флагов
 
 byte decode(char);
 char * bin_dec(uint32_t);
+void set_locks(uint32_t);
+uint32_t get_closed();
 
 void spi_task( void * parameter) 
 {
@@ -298,16 +301,9 @@ void spi_task( void * parameter)
 
       flags&=~sensors_flag;
     vTaskDelay(100);    
-  
-
 }
 }
 
-/*
-SERIAL_8E1    :020056E26462
-SERIAL_8O1    :020056E26462
-SERIAL_8N2    :020056E26462
-*/
 void card_task( void * parameter)
 {
   static char buff[20], i,j,k;
@@ -460,9 +456,33 @@ char * bin_dec(uint32_t val)
     return p;  
 }
 
+void set_locks(uint32_t val)
+{
+  int i,k;
+  for(i=0;i<20;i++)
+  {
+    if(val&(1<<i))
+    {
+      load_buff[i]|=0x80;
+    }else{
+      load_buff[i]&=0x7f;
+    }
+  }
+}
 
+uint32_t get_closed()
+{
+  uint32_t val = 0,i;
 
-
+  for(i=0;i<10;i++)
+  {
+    if(sens_buff[i*5]&0x01)
+    {
+      val|=1<<i;
+    }
+  }
+  return val;
+}
 
 
 

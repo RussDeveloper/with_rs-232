@@ -130,18 +130,34 @@ void loop()
   /**/
   if(Serial.available())
   {
-    j = Serial.read();
-    Serial.println(j, HEX);   
+    t = Serial.read();
+    Serial.println(t, HEX);   
   }
     switch (t)
     {
     case '1':{
+      for(int r=0;r<10;r++)
+        load_buff[r] = 0x0f;
+    }break;
 
+    case '2':{
+      for(int r=0;r<10;r++)
+        load_buff[r] = 0x00;
+    }break;
+    
+    
+    case '3':{
+      for(int r=10;r<20;r++)
+        load_buff[r] = 0xf0;
+    }break;
+
+    case '4':{
+      for(int r=10;r<20;r++)
+        load_buff[r] = 0x00;
+    }break;
     }
-      break;
-
-    }
-
+    
+    t=0;
     switch (j)
     {
     case '1':{
@@ -191,10 +207,14 @@ void loop()
       }
       break;
     case '9':{
-        serializeJson(tool_list, Serial);
+        //serializeJson(tool_list, Serial);
+
+        load_buff[5] = 0xff;
       }
       break;
     case '0':{
+      //Serial.print(analogRead(3), DEC);
+      load_buff[5] = 0x00;
       }
       break;
   }
@@ -263,20 +283,6 @@ void read_file(const char* path)
 
   file.close();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
   Serial.printf("Listing directory: %s\r\n", dirname);
