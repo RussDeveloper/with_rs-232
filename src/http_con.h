@@ -8,7 +8,8 @@
 String servergetToken("https://api.steklm.ru:51112/api/auth/getToken");
 //String servergetCardList("https://api.steklm.ru:51112/api/card/ ");
 String servergetCardList("https://api.steklm.ru:51112/api/Card?mac=3C-84-27-20-F5-B4");
-String user_action("http://192.168.0.26:1322/api/log/");
+//String user_action("http://192.168.0.26:1322/api/log/");
+String user_action("https://api.steklm.ru:51112/api/log/");
 //String servergetCardList("https://api.steklm.ru:51112/api/card/getCard");
 
 String getToken_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"); //3C:84:27:20:F5:B4
@@ -16,15 +17,16 @@ String body_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"
 String getToken_req1("{\n\"Login\": \"test\",\n\"Password\": \"test\"\n}");
 byte server1[] = { 192, 168, 0, 26 };
 
-String token, r_login;
+String token, r_login, s_action;
 JsonDocument card_list,       //Список карт 
-
+              action,
               doc;
 
 bool get_token(void);
 JsonDocument get_card_list(void);
 JsonDocument set_cust_action(String);
 int box_action(JsonDocument);
+int box_action_s(String);
 extern void card_list_compare(JsonDocument);
 
 String http_request(String, String, String);
@@ -33,12 +35,12 @@ void card_list_compare_old(JsonDocument);
 
 void http_master()
 {
-  static unsigned long tmr = 0, t_val=0;
+  static unsigned long tmr = 5000, t_val=0;
   String val = "" ,header = "", data = "";
   int i,j,k,t;
   //Сериализация - из JSON в файл/строку, функцию
   //Десериализация - из файла/строки в JSON
-  if(tmr>1000)
+  if(tmr>5000)
   {
     if(get_token())
     {
@@ -50,8 +52,26 @@ void http_master()
       }
     }
     tmr=0;
-
-  }
+    /**/
+    }
+    if(token.length()>0)
+    {
+      /*
+      if(!action.isNull())
+      {
+        Serial.println("Запрос начат. Код результата: ");
+        Serial.println(box_action(action));
+        serializeJson(action, Serial);
+        action.clear();
+      }*/
+      if(!s_action.isEmpty())
+      {
+        Serial.println("Запрос начат. Код результата: ");
+        Serial.println(box_action_s(s_action), HEX);
+        s_action.clear();
+      }
+    }
+  
    tmr++; 
 }
 
@@ -107,6 +127,7 @@ bool get_token(void)
                 Serial.println("Логин:");
                 Serial.println(r_login);
                 */
+               STA_client->stop();
                delete STA_client;
                 return true;
               }else
@@ -127,8 +148,8 @@ bool get_token(void)
           https.end();
           doc.clear();
     }
-  
-    delete STA_client;
+            STA_client->stop();
+    delete  STA_client;
 
     return flag;
 
@@ -176,21 +197,22 @@ String http_request(String url,       //URL адрес
             Serial.printf("[HTTP] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
           }      
           https.end();
+          STA_client->stop();
           return responce;
     }
-  
+    STA_client->stop();
     delete STA_client;
     return responce;    
 }
 
 JsonDocument get_card_list(void)
 {
-          WiFiClientSecure *STA_client = new  WiFiClientSecure; 
-        bool flag=false, log = false;
-        //JsonDocument doc;
-        String str, tmp;
-        JsonDocument doc;
-        int i,j;
+    WiFiClientSecure *STA_client = new  WiFiClientSecure; 
+    bool flag=false, log = false;
+    //JsonDocument doc;
+    String str, tmp;
+    JsonDocument doc;
+    int i,j;
 
    
     if(STA_client)
@@ -250,10 +272,9 @@ JsonDocument get_card_list(void)
     if(flag==false)
       doc.clear();
     return doc;
-
 }
 
-int box_action(JsonDocument action)
+int box_action(JsonDocument act)
 {
             WiFiClientSecure *STA_client = new  WiFiClientSecure; 
         bool tmp;
@@ -271,10 +292,19 @@ int box_action(JsonDocument action)
           Serial.println("[HTTP] begin...\n");
           Serial.println(tmp);  //HTTP
 
+          if(token.isEmpty())
+          {
+            Serial.println("Токен не получен");
+           https->end();
+          delete https;
+          STA_client->stop();
+          delete STA_client;            
+          }
+
           https->setAuthorization(token.c_str());
           https->setAuthorizationType("Bearer");    
-
-          httpCode = https->sendRequest("POST", action.as<String>());
+          String st = act.as<String>();
+          httpCode = https->sendRequest("POST", st);
       
           // httpCode will be negative on error
           if (httpCode > 0) {
@@ -282,16 +312,72 @@ int box_action(JsonDocument action)
             Serial.printf("[HTTP] GET... code: %d\n", httpCode);
 
           //doc.clear();
-          }else
-            Serial.println("HTTP not response");
+          }else{
+            Serial.println("HTTP not response, code:");
+            Serial.println(httpCode);
+            }
 
            https->end();
           delete https;
 
     STA_client->stop();
     delete STA_client;
+}
+    if(httpCode == HTTP_CODE_OK)
+      return 0;
+      else return 1;
+}
 
+int box_action_s(String  act)
+{
+            WiFiClientSecure *STA_client = new  WiFiClientSecure; 
+        bool tmp;
+        int httpCode;
 
+    if(STA_client)
+    {
+          STA_client->setInsecure();
+          
+          HTTPClient *https = new HTTPClient;
+
+          //https.setTimeout(100);
+          tmp = https->begin(*STA_client, user_action);
+
+          Serial.println("[HTTP] begin...\n");
+          Serial.println(tmp, DEC);  //HTTP
+
+          if(token.isEmpty())
+          {
+            Serial.println("Токен не получен");
+           https->end();
+          delete https;
+          STA_client->stop();
+          delete STA_client;            
+          }
+
+          https->setAuthorization(token.c_str());
+          https->setAuthorizationType("Bearer");   
+          https->addHeader("Content-Type", "application/json"); 
+          //String st = act.as<String>();
+          //httpCode = https->sendRequest("POST", st);
+          httpCode = https->sendRequest("POST", act);
+      
+          // httpCode will be negative on error
+          if (httpCode > 0) {
+            // HTTP header has been send and Server response header has been handled
+            Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+
+          //doc.clear();
+          }else{
+            Serial.println("HTTP not response, code:");
+            Serial.println(httpCode, DEC);
+            }
+
+           https->end();
+          delete https;
+
+    STA_client->stop();
+    delete STA_client;
 }
     if(httpCode == HTTP_CODE_OK)
       return 0;

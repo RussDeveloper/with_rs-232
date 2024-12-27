@@ -16,7 +16,7 @@ String  wifi_ssid,      //Set Your SSID
 WiFiServer STA_Server(80);
 //WiFiClient STA_client;
 
-
+ struct tm timeinfo;
 extern TaskHandle_t Task2;
 
 extern EventGroupHandle_t main_event_group;
@@ -40,7 +40,7 @@ void setClock() {
     nowSecs = time(nullptr);
   }
     Serial.println();
-  struct tm timeinfo;
+ 
   gmtime_r(&nowSecs, &timeinfo);
   Serial.print(F("Current time: "));
   Serial.print(asctime(&timeinfo));
@@ -250,13 +250,13 @@ void STA_Task( void *pvParameters )
     Serial.println("wifi_pass:");
     Serial.println(wifi_parol);
  
- while(WiFi.status() != WL_CONNECTED) 
- {
-  WiFi.begin(wifi_ssid, wifi_parol);
-  Serial.print(".");
-  vTaskDelay(3000);
-  }
-  setClock();
+  while(WiFi.status() != WL_CONNECTED) 
+  {
+    WiFi.begin(wifi_ssid, wifi_parol);
+    Serial.print(".");
+    vTaskDelay(3000);
+    }
+    setClock();
 
   Serial.println("STA_Task запущена");
   FS _fs(SPIFFS);

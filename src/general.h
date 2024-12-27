@@ -17,17 +17,21 @@
 
 extern EventGroupHandle_t main_event_group;
 extern com_drive rs_232;
-extern JsonDocument card_list;
+extern JsonDocument card_list, action;
        JsonDocument card_list_flash;
 
 extern char load_buff[5*num_nodules];
 extern String card_val;
+//extern int box_action(JsonDocument action);
+//extern int box_action(String act);
 
 //char user_nums[100][10];
 
 String user;
 uint32_t  lock_timer;
-bool lock;
+bool lock,
+      record            //Флаг режима добавления инструмента
+      ;
 
 typedef struct
 {
@@ -45,6 +49,7 @@ int add_tool(JsonDocument);
 int del_tool(String);
 int add_user(String);
 int del_user(String);
+String convert_to(String, bool);
 JsonDocument get_tools();
 JsonDocument get_tool_list();
 String get_tool();                    //если произошлои зменение датчиков - выдает ID инструмента
@@ -60,8 +65,8 @@ void general_task( void * pvParameters)
 {
   int list_size,i,j,k;
   char *p, mass[50];
-  String list_str, list_card;
-  JsonDocument t_doc, tools;
+  String list_str, list_card, msg;
+  JsonDocument doc, t_doc, tools;
   extern JsonDocument card_list;
   lock_timer = 0;
   //JsonArray u_arr = card_list.as<JsonArray>();
@@ -120,8 +125,8 @@ void general_task( void * pvParameters)
       }
         else{
               Serial.println("Нет доступа");
-              Serial.println(list_card);
-              Serial.println(card_val);
+              //Serial.println(list_card);
+              //Serial.println(card_val);
             }
       xEventGroupClearBits(main_event_group, RFID_flag);
       
@@ -136,7 +141,8 @@ void general_task( void * pvParameters)
       delay(50);
       digitalWrite(RED,LOW);
       xEventGroupClearBits(main_event_group, sensors_flag);
-
+      if(record == false)
+      {
       JsonDocument list = get_tool_list();
       tools = get_tools();
 
@@ -165,57 +171,83 @@ void general_task( void * pvParameters)
         if(match&0x1)//((match&0x1)&&(match&0x2==0))
         {
           /**/
+          String id =t_doc["id"].as<String>();
           Serial.print("Инструмент: ");
-          Serial.println(t_doc["id"].as<String>());
-         /* Serial.println(sens_change, DEC);*/
-        
-          //if(t_doc["isHere"].as<String>()=="true")
+          Serial.println(id);
+
           if(sens_change>0)
+          {
             Serial.println("Был установлен");
-          //if(t_doc["isHere"].as<String>()=="false")
-          if(sens_change==0)
-            Serial.println("Был взят");
-        }
-
-
-        /*Serial.print(list[j].as<String>()+ "   ");
-        k=0;
-        
-        for(i=0;i<50;i++)
-        {
-
-          if(msk[i]>0)
-          {
-            k++;
+            s_action = convert_to(id, true);
           }
-        }
-        if(k>0)
-        {
-        for(i=0;i<50;i++)
-        {
-          if(msk[i]>0)
+          if(sens_change==0)
           {
-            if((msk[i]&sens_delta[i])==sens_delta[i])
+            Serial.println("Был взят");
+            s_action = convert_to(id, false);       
+          }
+            //s_action = str;
+            //Serial.println(str);
+            //action = doc;
+            //box_action(str);
+          }
+          //Serial.println(s_action);
+          
+          
+          for(i=0;i<5;i++)
+          {
+                    
+            /*
+            if(box_action(doc)==0)
             {
-              
-              if(k)
-              {k--;}
-              else
-              {
-                Serial.println("Ошибка маски инструмента");
-                k=0;
-              }
-              
+              break;
+            }
+            delay(500);
+            
+
+          delay(500);
+          if(action.isNull())
+              break;
+          }
+          if(i>3)
+            Serial.print("Не удалось передать действие пользователя");*/
+          /*Serial.print(list[j].as<String>()+ "   ");
+          k=0;
+          
+          for(i=0;i<50;i++)
+          {
+
+            if(msk[i]>0)
+            {
+              k++;
             }
           }
-        }
-        }
-        */
-
+          if(k>0)
+          {
+          for(i=0;i<50;i++)
+          {
+            if(msk[i]>0)
+            {
+              if((msk[i]&sens_delta[i])==sens_delta[i])
+              {
+                
+                if(k)
+                {k--;}
+                else
+                {
+                  Serial.println("Ошибка маски инструмента");
+                  k=0;
+                }
+                
+              }
+            }
+          } */
+          }
+        
       }
 
       for(i=0;i<50;i++)
         sens_delta[i] = 0;
+      }
       /*
             for(i=0;i<50;i++)
             {
@@ -257,9 +289,90 @@ void general_task( void * pvParameters)
       }  */
      
     }
-/**/
-    i=0;
- /*
+
+    if(xEventGroupGetBits(main_event_group)&rs232_flag)              //Сообщение от планшета
+      {
+          if(!rs_232.reseive.isNull()){
+            msg += rs_232.reseive["command"].as<String>();
+            Serial.println("general_task");
+            Serial.println(msg);
+            //delete ptr;
+              if(msg =="start")                   //При добавлении инструмента - сохраняется битовая маска до добавления
+              {
+                record = true;
+                for(i=0;i<50;i++)
+                  {
+                    mass[i] = sens_buff[i];
+                    sens_delta[i] = 0;
+                  }
+
+                rs_232.rx_flag=false;
+                rs_232.reseive.clear();
+              }
+              if(msg =="end")  
+              {
+                JsonArray arr = t_doc["mask"].to<JsonArray>();
+                int mod=0;
+                for(i=0;i<50;i++)
+                {
+                  arr.add((unsigned char)sens_delta[i]);
+                  if((sens_delta>0)&&(mod==0))
+                    mod = i/5;
+                }
+
+                t_doc["cell"] = mod;
+                t_doc["id"] = rs_232.reseive["value"];
+                JsonDocument doc2;
+                doc2[rs_232.reseive["value"]] = t_doc;
+                add_tool(t_doc);
+
+                  rs_232.transmit["command"] = "ok";
+                  String val =  rs_232.reseive["value"];
+                  rs_232.transmit["id"] = val;
+                  rs_232.tx_flag = true;
+                  record = false;  
+              }
+              if(msg =="delete")  
+              {
+                if(del_tool(rs_232.reseive["value"]))
+                {
+                  rs_232.transmit.clear();
+                  rs_232.transmit["command"] = "delete";
+                  rs_232.transmit["value"] = "ok";
+                  rs_232.tx_flag = true;
+                }
+
+              }
+            if(msg =="light")  
+              {
+                
+              }
+
+              msg.clear();
+          }
+          else{ Serial.println("Json опять мозги ебет");}
+
+          xEventGroupClearBits(main_event_group, rs232_flag);
+        rs_232.rx_flag = 0;
+      }
+    delay(10);
+    if(lock_timer==0)
+      user.clear();
+
+    if(lock_timer<(59*100))
+      set_locks(0);
+    if(lock_timer)
+    {
+      if(lock_timer%100==0)
+      {
+        Serial.println("До закрытия осталось :");
+        Serial.println(lock_timer/100, DEC);
+        Serial.println("секунд");
+      }
+      lock_timer--;
+    }
+    i=0;    
+     /*
     if(RFID_dat)                            //Если очередь создана
       i=uxQueueMessagesWaiting(RFID_dat);
          
@@ -292,90 +405,6 @@ void general_task( void * pvParameters)
       }
     }
     */
-
-    String msg;
-   
-   if(xEventGroupGetBits(main_event_group)&rs232_flag)              //Сообщение от планшета
-    {
-        if(!rs_232.reseive.isNull()){
-          msg += rs_232.reseive["command"].as<String>();
-          Serial.println("general_task");
-          Serial.println(msg);
-          //delete ptr;
-            if(msg =="start")                   //При добавлении инструмента - сохраняется битовая маска до добавления
-            {
-              for(i=0;i<50;i++)
-                {
-                  mass[i] = sens_buff[i];
-                  sens_delta[i] = 0;
-                }
-
-              rs_232.rx_flag=false;
-              rs_232.reseive.clear();
-            }
-            if(msg =="end")  
-            {
-              JsonArray arr = t_doc["mask"].to<JsonArray>();
-              int mod=0;
-              for(i=0;i<50;i++)
-              {
-                arr.add((unsigned char)sens_delta[i]);
-                if((sens_delta>0)&&(mod==0))
-                  mod = i/5;
-              }
-
-              t_doc["cell"] = mod;
-              t_doc["id"] = rs_232.reseive["value"];
-              JsonDocument doc2;
-              doc2[rs_232.reseive["value"]] = t_doc;
-              add_tool(t_doc);
-
-                rs_232.transmit["command"] = "ok";
-                String val =  rs_232.reseive["value"];
-                rs_232.transmit["id"] = val;
-                rs_232.tx_flag = true;
-
-
-            }
-            if(msg =="delete")  
-            {
-              if(del_tool(rs_232.reseive["value"]))
-              {
-                rs_232.transmit.clear();
-                rs_232.transmit["command"] = "delete";
-                rs_232.transmit["value"] = "ok";
-                rs_232.tx_flag = true;
-              }
-
-            }
-           if(msg =="light")  
-            {
-              
-            }
-
-            msg.clear();
-        }
-        else{ Serial.println("Json опять мозги ебет");}
-
-        xEventGroupClearBits(main_event_group, rs232_flag);
-      rs_232.rx_flag = 0;
-    }
-    delay(10);
-    if(lock_timer==0)
-      user.clear();
-
-    if(lock_timer<(59*100))
-      set_locks(0);
-    if(lock_timer)
-    {
-      if(lock_timer%100==0)
-      {
-        Serial.println("До закрытия осталось :");
-        Serial.println(lock_timer/100, DEC);
-        Serial.println("секунд");
-      }
-      lock_timer--;
-    }
   }
 }
 
@@ -653,7 +682,7 @@ void card_list_compare(JsonDocument t)
           }
     }      
       if(flag)                                      //Если Данного ID нет в списке сохраненных
-      {                                             // - добавить
+      { if(log)                                            // - добавить
         Serial.println("Добавить пользователя с ID - "+t[i].as<String>());
         add_user(t[i].as<String>());
       }
@@ -789,11 +818,44 @@ String get_tool()
 //Сериализация - из JSON в строку, функцию
 //Десериализация - из строки в JSON
 
+String convert_to(String id, bool here)
+{
+        String str;
+        if(user.isEmpty())
+          return str;
+        str = "{\"Card\": \"";
+        str+= user;
+        str+="\", \"idFilling\": ";
+        str+= id;
+        str+=", \"Date\": \"";
+        str+=timeinfo.tm_year+1900;
+        str+="-"; 
+        if(timeinfo.tm_mon<10)
+          str+="0";       
+        str+=timeinfo.tm_mon; 
+        str+="-";  
+        if(timeinfo.tm_mday<10)
+          str+="0";       
+        str+=timeinfo.tm_mday;
+        str+="T";
+        if(timeinfo.tm_hour<10)
+          str+="0";       
+        str+=timeinfo.tm_hour;
+        str+=":";
+        if(timeinfo.tm_min<10)
+          str+="0";          
+        str+=timeinfo.tm_min;
+        str+=":";
+        if(timeinfo.tm_sec<10)
+          str+="0";          
+        str+=timeinfo.tm_sec;
+        str+="\", \"isHere\": ";
 
+        if(here)
+        {str+= "true}";}else{str+= "false}";}
 
-
-
-
+        return str;
+}
 
 
 

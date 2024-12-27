@@ -33,7 +33,7 @@ void init_all();
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 
 JsonDocument t1, t2;
-
+extern  struct tm timeinfo;
 
 void setup() 
 {
@@ -118,8 +118,6 @@ void loop()
 {
   int i[5],j,k[5],t;
 
-
-
   if(x>2000)
   {
     x=0;
@@ -130,8 +128,8 @@ void loop()
   /**/
   if(Serial.available())
   {
-    t = Serial.read();
-    Serial.println(t, HEX);   
+    j = Serial.read();
+    //Serial.println(t, HEX);   
   }
     switch (t)
     {
@@ -155,8 +153,22 @@ void loop()
       for(int r=10;r<20;r++)
         load_buff[r] = 0x00;
     }break;
+    case '5':{
+      String str;
+            str+=timeinfo.tm_mday;
+            str+=".";
+            str+=timeinfo.tm_mon;
+            str+=".";
+            str+=timeinfo.tm_year+1900;
+
+        Serial.print(F("Current date: "));
+        Serial.print(str);
+        str.clear();
+    }break;    case '6':{
+      Serial.println(token);
+    }break;
     }
-    
+
     t=0;
     switch (j)
     {
