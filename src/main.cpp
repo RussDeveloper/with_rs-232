@@ -112,11 +112,14 @@ void setup()
                           &Task6,                 // Дескриптор задачи для отслеживания 
                           0);                     // Указываем номер ядра для этой задачи 
               
-  }                  
+  }   
+
+  JsonDocument j_doc;
 
 void loop()
 {
-  int i[5],j,k[5],t;
+  int i[5],j,k[5],t,f;
+
 
   if(x>2000)
   {
@@ -128,9 +131,32 @@ void loop()
   /**/
   if(Serial.available())
   {
-    j = Serial.read();
+    f = Serial.read();
     //Serial.println(t, HEX);   
   }
+    switch (f)
+    {
+      case '1':{
+                j_doc = get_users();
+                JsonArray _ar = j_doc.as<JsonArray>();  
+                for(int a=0;a<user_list.size();a++)
+                {
+                  Serial.println(user_list[a].as<String>());
+                }   
+                }break;
+
+      case '2':{
+                serializeJson(user_list, Serial);  
+                Serial.println("");
+                }break;
+
+      case '3':{
+                serializeJson(users, Serial);  
+                Serial.println("");
+                }break;
+
+    }
+
     switch (t)
     {
     case '1':{
@@ -142,7 +168,6 @@ void loop()
       for(int r=0;r<10;r++)
         load_buff[r] = 0x00;
     }break;
-    
     
     case '3':{
       for(int r=10;r<20;r++)
@@ -164,11 +189,38 @@ void loop()
         Serial.print(F("Current date: "));
         Serial.print(str);
         str.clear();
-    }break;    case '6':{
+    }break; 
+
+    case '6':{
       Serial.println(token);
     }break;
+    
+    case '7':{
+      Serial.println(j_doc["main1"].add("p1"));
+      Serial.println(j_doc["main1"].add("p2"));
+      //serializeJson(j_doc, Serial);
+    }break;
+    case '8':{
+      j_doc["main1"].clear();
+      //serializeJson(j_doc, Serial);
+    }break;
+    case '9':{
+      JsonArray arr = j_doc["main1"];
+     Serial.println(j_doc["p2"].is<int>());
+     Serial.println(j_doc["main1"]["p2"].is<int>());
+      //serializeJson(j_doc, Serial);
+    }break;
+    case '0':{
+              j_doc["main1"].remove(String("p2"));
+    }break;
     }
-
+    
+    if((f>='0')&&(f<='9'))
+    {
+      serializeJson(j_doc, Serial);
+      Serial.println("");
+      delay(100);
+    }
     t=0;
     switch (j)
     {

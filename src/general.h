@@ -43,17 +43,24 @@ typedef struct
 
 //tool_form tool[50];
 
-JsonDocument tool,tool_list;
+JsonDocument tool,
+              tool_list, 
+              user_list,     //JSON в котором записываются все пользователи
+              users          //JSON в котором записываются все инструменты 
+            ;                //взятые каждым пользователем
 
+bool dell_item(JsonDocument *, String );
 int add_tool(JsonDocument);
 int del_tool(String);
 int add_user(String);
 int del_user(String);
-String convert_to(String, bool);
+String convert_to(String, bool);      //Функция приведения информации в формат для передачи на сервер
 JsonDocument get_tools();
-JsonDocument get_tool_list();
+JsonDocument get_tool_list();         //JSON с ID-шниками инструментов
 String get_tool();                    //если произошлои зменение датчиков - выдает ID инструмента
-JsonDocument get_users();
+JsonDocument get_users();             //Возвращает json с ключами, которые являются номерами карт
+JsonDocument get_users_list();        //JSON с ID-шниками инструментов
+JsonDocument _get_users();
 JsonDocument  read_card_list();
 void card_list_compare(JsonDocument);
 bool chek_item(JsonDocument, String);
@@ -75,6 +82,10 @@ void general_task( void * pvParameters)
   //File t_list = SPIFFS.open("/tool_list.txt");
   
   tool_list = get_tools();        //список инструментов
+  user_list = get_users_list();   //Список пользователей
+
+  users = get_users();          
+
   Serial.println("//список инструментов");
 
  /* 
@@ -101,6 +112,18 @@ void general_task( void * pvParameters)
   {
     if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
     {
+      /*
+      int i1, j1, k1;
+      j1 = users.size();
+      for(i1=0;i1<j1;i1++)
+      {
+        if(users[i1]!=NULL)
+        {
+          serializeJson(users[i1], Serial);
+        }
+      }
+    */
+
     }else{
       if(card_list.isNull())                              //Если выключен - берем список из флеши
       {
@@ -141,6 +164,7 @@ void general_task( void * pvParameters)
       delay(50);
       digitalWrite(RED,LOW);
       xEventGroupClearBits(main_event_group, sensors_flag);
+      //Работа только когда не происходит операция добавления инструмента в базу
       if(record == false)
       {
       JsonDocument list = get_tool_list();
@@ -178,71 +202,41 @@ void general_task( void * pvParameters)
           if(sens_change>0)
           {
             Serial.println("Был установлен");
-            s_action = convert_to(id, true);
-          }
+            //s_action = convert_to(id, true);
+           }
           if(sens_change==0)
           {
             Serial.println("Был взят");
-            s_action = convert_to(id, false);       
+            //s_action = convert_to(id, false);       
           }
+
+          if(sens_change>0)     //Если "Был установлен"
+          {
+            bool fl1=false;
+           for(int a=0;a<user_list.size();a++)                    //Поиск пользователя, который брал и удаление из его списка
+           {
+            JsonArray _arr = users[user_list[a]].as<JsonArray>();
+            for(int q=0;q<_arr.size();q++)
+            {
+              if(_arr[q].as<String>()==id)
+              {
+                _arr.remove(q);
+                fl1=true;
+              }
+            }
+           }
+            if(fl1)
+              Serial.println("Инструмент с ID " +id+" вернуть не удалось");
+          }else
+          {
+              users[user].add(id);
+          }
+
             //s_action = str;
             //Serial.println(str);
             //action = doc;
             //box_action(str);
-          }
-          //Serial.println(s_action);
-          
-          
-          for(i=0;i<5;i++)
-          {
-                    
-            /*
-            if(box_action(doc)==0)
-            {
-              break;
-            }
-            delay(500);
-            
-
-          delay(500);
-          if(action.isNull())
-              break;
-          }
-          if(i>3)
-            Serial.print("Не удалось передать действие пользователя");*/
-          /*Serial.print(list[j].as<String>()+ "   ");
-          k=0;
-          
-          for(i=0;i<50;i++)
-          {
-
-            if(msk[i]>0)
-            {
-              k++;
-            }
-          }
-          if(k>0)
-          {
-          for(i=0;i<50;i++)
-          {
-            if(msk[i]>0)
-            {
-              if((msk[i]&sens_delta[i])==sens_delta[i])
-              {
-                
-                if(k)
-                {k--;}
-                else
-                {
-                  Serial.println("Ошибка маски инструмента");
-                  k=0;
-                }
-                
-              }
-            }
-          } */
-          }
-        
+          }  
       }
 
       for(i=0;i<50;i++)
@@ -618,7 +612,7 @@ JsonDocument  read_card_list()
  
     i = str.indexOf(".txt");
     str.remove(i);
-     Serial.println(str);  
+     //Serial.println(str);  
      doc.add(str);
     file = root.openNextFile();
   }
@@ -777,7 +771,7 @@ JsonDocument get_tool_list()
   return doc;
 }
 
-JsonDocument get_users()
+JsonDocument _get_users()
 {
   JsonDocument doc, temp;
   String str;
@@ -802,6 +796,34 @@ JsonDocument get_users()
       {
         Serial.println("В функции get_users() не удалось открыть папку /users");
       }
+  return doc;
+}
+JsonDocument get_users()
+{
+  JsonDocument doc, temp;
+  String str;
+  int i,j;
+
+    File root = SPIFFS.open("/users");
+    File file = root.openNextFile();
+
+      if(root)
+    {
+      while(file)                     //Поверка на наличие уже созданных файлов
+      {
+        str = file.name();
+        i = str.indexOf(".txt");
+        str.remove(i);
+        doc[str] = nullptr;        
+        temp.clear();
+        file.close();
+        file = root.openNextFile();
+      }
+    }else
+    {
+      Serial.println("В функции get_users() не удалось открыть папку /users");
+    }
+    root.close();
   return doc;
 }
 
@@ -856,6 +878,57 @@ String convert_to(String id, bool here)
 
         return str;
 }
+
+bool dell_item(JsonDocument *p, String &str)
+{
+  JsonDocument _doc;
+  JsonArray _arr = p->as<JsonArray>();
+  bool fl1=false;
+    
+    for(int q=0;q<_arr.size();q++)
+    {
+      if(_arr[q].as<String>()==str)
+      {
+        _arr.remove(q);
+        fl1=true;
+      }
+    }
+    return fl1;
+}
+
+JsonDocument get_users_list()
+{
+  JsonDocument doc;
+  String str;
+
+      File root = SPIFFS.open("/users");
+       File file = root.openNextFile();
+
+      while(file)                     //Поверка на наличие уже созданных файлов
+    {
+      str = file.name();
+      int t = str.indexOf(".txt");
+      str.remove(t);
+      doc.add(str);
+      file.close();
+      file = root.openNextFile();
+    }
+  return doc;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
