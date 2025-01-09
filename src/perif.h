@@ -374,8 +374,8 @@ void rs232_task(void *plParametrs)
       str = serial_buff;    
       if(deserializeJson(rs_232.reseive, str) == DeserializationError::Ok)
         {rs_232.rx_flag = true;
-          Serial.println("DeserializationError::Ok");
-          Serial.println(rs_232.reseive.as<String>());          
+          //Serial.println("DeserializationError::Ok");
+          //Serial.println(rs_232.reseive.as<String>());          
           xEventGroupSetBits(main_event_group, rs232_flag);
         }
         j=0;
@@ -386,7 +386,7 @@ void rs232_task(void *plParametrs)
       serializeJson(rs_232.transmit, str);
       Serial2.print(str);
       rs_232.tx_flag = false;
-      Serial.print("tx_flag");
+      //Serial.print("tx_flag");
     }
     delay(10);
   }

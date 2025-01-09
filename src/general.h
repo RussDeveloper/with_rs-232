@@ -110,30 +110,6 @@ void general_task( void * pvParameters)
 
   for(;;)
   {
-    if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
-    {
-      /*
-      int i1, j1, k1;
-      j1 = users.size();
-      for(i1=0;i1<j1;i1++)
-      {
-        if(users[i1]!=NULL)
-        {
-          serializeJson(users[i1], Serial);
-        }
-      }
-    */
-
-    }else{
-      if(card_list.isNull())                              //Если выключен - берем список из флеши
-      {
-        card_list=read_card_list();
-        Serial.println("Работа в автономном режиме. Список крат:   ");
-        Serial.println(card_list.as<String>());
-      }
-
-    }
-
     if(xEventGroupGetBits(main_event_group)&RFID_flag)    //Если RFID_flag считан
     {
       serializeJsonPretty(card_list, list_card);
@@ -163,25 +139,32 @@ void general_task( void * pvParameters)
       digitalWrite(RED,HIGH);
       delay(50);
       digitalWrite(RED,LOW);
-      xEventGroupClearBits(main_event_group, sensors_flag);
+      //xEventGroupClearBits(main_event_group, sensors_flag);
       //Работа только когда не происходит операция добавления инструмента в базу
       if(record == false)
       {
       JsonDocument list = get_tool_list();
       tools = get_tools();
 
+      JsonDocument ms_doc;
       byte match;
+      int vl;
+
       for(j=0;j<list.size();j++)
       {
-        t_doc = tools[list[j]];
+        
+        ms_doc = tools[list[j]];
         /**/
-        JsonArray msk = t_doc["mask"].as<JsonArray>();
-          match = 0;
+        JsonArray msk = ms_doc["mask"].as<JsonArray>();
+        //String msk = t_doc["mask"].as<String>();    
+
          for(i=0;i<50;i++)
          {
-          if(msk[i]>0)
+          k = msk[i].as<int>();
+          //Serial.print(k);          
+          if(k>0)
           {
-            k = msk[i];
+            match=0;
             if((k&sens_delta[i])==k)
             {
               match|=0x1;
@@ -191,11 +174,13 @@ void general_task( void * pvParameters)
             }
           }
         }
-       
+
+        //Serial.println("");
+
         if(match&0x1)//((match&0x1)&&(match&0x2==0))
         {
           /**/
-          String id =t_doc["id"].as<String>();
+          String id =ms_doc["id"].as<String>();
           Serial.print("Инструмент: ");
           Serial.println(id);
 
@@ -214,8 +199,8 @@ void general_task( void * pvParameters)
           {
             bool fl1=false;
            for(int a=0;a<user_list.size();a++)                    //Поиск пользователя, который брал и удаление из его списка
-           {
-            JsonArray _arr = users[user_list[a]].as<JsonArray>();
+           {/**/
+            JsonArray _arr = users[user_list[a].as<String>()];
             for(int q=0;q<_arr.size();q++)
             {
               if(_arr[q].as<String>()==id)
@@ -238,6 +223,8 @@ void general_task( void * pvParameters)
             //box_action(str);
           }  
       }
+
+
 
       for(i=0;i<50;i++)
         sens_delta[i] = 0;
@@ -283,13 +270,34 @@ void general_task( void * pvParameters)
       }  */
      
     }
+    if(xEventGroupGetBits(main_event_group)&wifi_flag)    //Если WiFi подключен
+    {
+      if(xEventGroupGetBits(main_event_group)&sensors_flag)
+      {
+
+        for(int a=0;a<users.size();a++)
+        {
+          if(user_list[users[a]].size()>0)
+          {
+            
+          }
+        }
+      }
+
+    }else{
+      if(card_list.isNull())                              //Если выключен - берем список из флеши
+      {
+        card_list=read_card_list();
+        Serial.println("Работа в автономном режиме. Список крат:   ");
+        Serial.println(card_list.as<String>());
+      }
+    }
 
     if(xEventGroupGetBits(main_event_group)&rs232_flag)              //Сообщение от планшета
       {
           if(!rs_232.reseive.isNull()){
             msg += rs_232.reseive["command"].as<String>();
-            Serial.println("general_task");
-            Serial.println(msg);
+            //serializeJson(rs_232.reseive, Serial);
             //delete ptr;
               if(msg =="start")                   //При добавлении инструмента - сохраняется битовая маска до добавления
               {
@@ -305,25 +313,36 @@ void general_task( void * pvParameters)
               }
               if(msg =="end")  
               {
-                JsonArray arr = t_doc["mask"].to<JsonArray>();
+                doc.clear();
+                doc["id"] = rs_232.reseive["value"];
+                //JsonDocument doc2;
+                //doc2[rs_232.reseive["value"]] = t_doc;
+                
+                //Serial.println(doc["id"].as<String>());
+
+                //JsonArray arr = doc["mask"].as<JsonArray>();
                 int mod=0;
                 for(i=0;i<50;i++)
                 {
-                  arr.add((unsigned char)sens_delta[i]);
+                  //arr.add((unsigned char)sens_delta[i]);
+                  doc["mask"].add((unsigned char)sens_delta[i]);
                   if((sens_delta>0)&&(mod==0))
                     mod = i/5;
                 }
-
-                t_doc["cell"] = mod;
-                t_doc["id"] = rs_232.reseive["value"];
-                JsonDocument doc2;
-                doc2[rs_232.reseive["value"]] = t_doc;
-                add_tool(t_doc);
-
+                doc["cell"] = mod;
+                serializeJson(doc, Serial);//////////////////////////
+                if(add_tool(doc)==0)
+                {
                   rs_232.transmit["command"] = "ok";
                   String val =  rs_232.reseive["value"];
                   rs_232.transmit["id"] = val;
+                  rs_232.tx_flag = true;}
+                  else{
+                  rs_232.transmit["command"] = "false";
+                  String val =  rs_232.reseive["value"];
+                  rs_232.transmit["id"] = val;
                   rs_232.tx_flag = true;
+                  }
                   record = false;  
               }
               if(msg =="delete")  
@@ -337,10 +356,10 @@ void general_task( void * pvParameters)
                 }
 
               }
-            if(msg =="light")  
-              {
-                
-              }
+              if(msg =="light")  
+                {
+                  
+                }
 
               msg.clear();
           }
@@ -349,6 +368,8 @@ void general_task( void * pvParameters)
           xEventGroupClearBits(main_event_group, rs232_flag);
         rs_232.rx_flag = 0;
       }
+    
+    xEventGroupClearBits(main_event_group, sensors_flag);
     delay(10);
     if(lock_timer==0)
       user.clear();
@@ -412,6 +433,8 @@ int add_tool(JsonDocument t)
 
     str = t["id"].as<String>(); 
     str+= ".txt";
+    //Serial.print("serializeJson(t, Serial); :");
+    serializeJson(t, Serial);
 
     while(file)                     //Поверка на наличие уже созданных файлов
     {
@@ -421,8 +444,10 @@ int add_tool(JsonDocument t)
       {
         seach=true;
         Serial.println("Инструмент с таким номеров уже существует...");
+        Serial.println(str);
         file.close();
         root.close();
+        record = false;
         return 1;
       }
       //str.clear();
@@ -446,6 +471,7 @@ int add_tool(JsonDocument t)
       }
 
       serializeJson(t, file);
+      record = false;
       file.close();
       return 0;
 }

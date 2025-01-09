@@ -114,12 +114,12 @@ void setup()
               
   }   
 
-  JsonDocument j_doc;
+
 
 void loop()
 {
-  int i[5],j,k[5],t,f;
-
+  int i,j,k[5],t,f;
+  JsonDocument doc1, doc2, j_doc;
 
   if(x>2000)
   {
@@ -131,7 +131,7 @@ void loop()
   /**/
   if(Serial.available())
   {
-    f = Serial.read();
+    j = Serial.read();
     //Serial.println(t, HEX);   
   }
     switch (f)
@@ -217,21 +217,28 @@ void loop()
     
     if((f>='0')&&(f<='9'))
     {
-      serializeJson(j_doc, Serial);
-      Serial.println("");
+      //serializeJson(j_doc, Serial);
+      //Serial.println("");
       delay(100);
     }
     t=0;
     switch (j)
     {
     case '1':{
-      Serial.print("add_tool(t);  ");
-      Serial.println(add_tool(t1));
-            Serial.print("add_user(129);  ");
-      Serial.println(add_user(String("129")));
+      doc1 = get_tools();
+      doc2 = get_tool_list();
+      JsonArray arr2 = doc2.as<JsonArray>();
+      for(i=0;i<doc2.size();i++)
+        Serial.println(arr2[i].as<int>(), DEC);
       }
       break;
-    case '2':{serializeJson(get_users(), Serial);}//read_file("/list_users.txt");}
+    case '2':{
+      //serializeJson(get_users(), Serial);
+            Serial.println("Значение датчиков");
+      for(int f=0;f<50;f++)
+        Serial.print(sens_buff[f], HEX);
+        Serial.println("");
+      }//read_file("/list_users.txt");}
       break;
     case '3':{serializeJson(get_tools(), Serial);}
       break;
@@ -243,10 +250,7 @@ void loop()
       }
       break;
     case '5':{
-      Serial.println("Просмотр t2");
-      serializeJson(t2, Serial);
-      Serial.println("t2.nesting()");
-      Serial.println(t2.nesting());
+
       }
       break;
     case '6':{
@@ -271,9 +275,7 @@ void loop()
       }
       break;
     case '9':{
-        //serializeJson(tool_list, Serial);
-
-        load_buff[5] = 0xff;
+        serializeJson(get_tool_list(), Serial);
       }
       break;
     case '0':{
