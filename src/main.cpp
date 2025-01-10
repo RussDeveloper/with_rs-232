@@ -118,7 +118,7 @@ void setup()
 
 void loop()
 {
-  int i,j,k[5],t,f;
+  int i,j,k[5],t,f,g;
   JsonDocument doc1, doc2, j_doc;
 
   if(x>2000)
@@ -131,9 +131,84 @@ void loop()
   /**/
   if(Serial.available())
   {
-    j = Serial.read();
+    g = Serial.read();
     //Serial.println(t, HEX);   
   }
+
+  switch (g)
+  {
+  case '1':
+    {
+      Serial.println("wifi_ssid");
+      Serial.println(wifi_ssid);
+      Serial.println("wifi_parol");
+      Serial.println(wifi_parol);
+    }
+    break;
+
+    case '2':
+    {
+          //static wl_status_t status();
+          Serial.println("(WiFi.SSID())");
+          Serial.println(WiFi.SSID());
+          Serial.println("WiFi.psk()");
+          Serial.println(WiFi.psk());
+          Serial.println("WiFi.BSSIDstr()");
+          Serial.println(WiFi.BSSIDstr());
+          Serial.println("WiFi.RSSI()");
+          Serial.println(WiFi.RSSI(), DEC);
+    
+    }break;
+
+      case '3':
+    {
+      Serial.println("WiFi.status()");
+      Serial.println(WiFi.status());
+      Serial.println("WiFi.getMode()");
+      Serial.println(WiFi.getMode());
+
+    }break;
+
+      case '4':
+    {
+      Serial.println("WiFi.status()");
+      Serial.println(WiFi.status());
+      Serial.println("WiFi.getMode()");
+      Serial.println(WiFi.getMode());
+
+    }break;
+
+    case '5':{
+
+          // STA network info
+    Serial.print("WiFi.localIP() :");
+    Serial.println(WiFi.localIP());
+
+   Serial.print("WiFi.macAddress() :");
+   Serial.println(WiFi.macAddress());
+
+    Serial.print("WiFi.subnetMask() :");
+    Serial.println(WiFi.subnetMask());
+    Serial.print("WiFi.gatewayIP() :");
+    Serial.println(WiFi.gatewayIP());
+    Serial.print("WiFi.dnsIP() :");
+    Serial.println(WiFi.dnsIP());
+
+    Serial.print("WiFi.broadcastIP() :");
+    Serial.println(WiFi.broadcastIP());
+    Serial.print("WiFi.networkID() :");
+    Serial.println(WiFi.networkID());
+    Serial.print("WiFi.subnetCIDR() :");
+    Serial.println(WiFi.subnetCIDR(), DEC);
+    
+    Serial.print("WiFi.enableIpV6() :");
+    Serial.println(WiFi.enableIpV6());
+    Serial.print("WiFi.localIPv6() :");
+    Serial.println(WiFi.localIPv6());
+    }break;
+  }
+  g=0;
+
     switch (f)
     {
       case '1':{

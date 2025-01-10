@@ -242,6 +242,8 @@ byte wifi_saver()
 void STA_Task( void *pvParameters )
 {
   int i;
+  WiFi.config(IPAddress(192 ,168,9,117),IPAddress(192,168,0,1),IPAddress(255,255,0,0),IPAddress(192,168,0,7));
+
   if(wifi_ssid.isEmpty())
     wifi_reader();
 
@@ -256,7 +258,7 @@ void STA_Task( void *pvParameters )
     Serial.print(".");
     vTaskDelay(3000);
     }
-    setClock();
+    //setClock();
 
   Serial.println("STA_Task запущена");
   FS _fs(SPIFFS);
@@ -294,14 +296,16 @@ void STA_Task( void *pvParameters )
  // u_list.close();
   
   for(;;)
-  {
+  {          
+    wifi_saver();
+
     if(wifi_ssid!=0)
     {
       if(WiFi.status() == WL_CONNECTED) 
        { 
           xEventGroupSetBits(main_event_group, wifi_flag);
           digitalWrite(GREEN, HIGH); 
-          wifi_saver();
+
           http_master();           
        }else
         {

@@ -147,7 +147,7 @@ void general_task( void * pvParameters)
       tools = get_tools();
 
       JsonDocument ms_doc;
-      byte match;
+      byte match, num_bit;
       int vl;
 
       for(j=0;j<list.size();j++)
@@ -156,9 +156,17 @@ void general_task( void * pvParameters)
         ms_doc = tools[list[j]];
         /**/
         JsonArray msk = ms_doc["mask"].as<JsonArray>();
-        //String msk = t_doc["mask"].as<String>();    
+        //String msk = t_doc["mask"].as<String>(); 
+
+         num_bit=0;
 
          for(i=0;i<50;i++)
+         {
+          k = msk[i].as<int>(); 
+          if(k)
+            num_bit++;        
+         }
+          for(i=0;i<50;i++)
          {
           k = msk[i].as<int>();
           //Serial.print(k);          
@@ -168,16 +176,15 @@ void general_task( void * pvParameters)
             if((k&sens_delta[i])==k)
             {
               match|=0x1;
+              if(num_bit)
+                num_bit--;
             }else
             {
               match|=0x2;
             }
           }
         }
-
-        //Serial.println("");
-
-        if(match&0x1)//((match&0x1)&&(match&0x2==0))
+             if((match&0x1)&&(num_bit==0))//((match&0x1)&&(match&0x2==0))
         {
           /**/
           String id =ms_doc["id"].as<String>();
@@ -187,13 +194,14 @@ void general_task( void * pvParameters)
           if(sens_change>0)
           {
             Serial.println("Был установлен");
-            //s_action = convert_to(id, true);
+            s_action = convert_to(id, true);
            }
           if(sens_change==0)
           {
             Serial.println("Был взят");
-            //s_action = convert_to(id, false);       
+            s_action = convert_to(id, false);       
           }
+          Serial.println(s_action);
 
           if(sens_change>0)     //Если "Был установлен"
           {
@@ -216,15 +224,8 @@ void general_task( void * pvParameters)
           {
               users[user].add(id);
           }
-
-            //s_action = str;
-            //Serial.println(str);
-            //action = doc;
-            //box_action(str);
           }  
-      }
-
-
+        }
 
       for(i=0;i<50;i++)
         sens_delta[i] = 0;
