@@ -107,7 +107,10 @@ void general_task( void * pvParameters)
 
       j = doc.size();
       */
-
+  bool cov = false;        //флаг совпадения одного бита любого инструмента, который не установлен
+  uint8_t mask[20];
+  //String mask;
+  
   for(;;)
   {
     if(xEventGroupGetBits(main_event_group)&RFID_flag)    //Если RFID_flag считан
@@ -139,6 +142,7 @@ void general_task( void * pvParameters)
       digitalWrite(RED,HIGH);
       delay(50);
       digitalWrite(RED,LOW);
+
       //xEventGroupClearBits(main_event_group, sensors_flag);
       //Работа только когда не происходит операция добавления инструмента в базу
       if(record == false)
@@ -147,7 +151,7 @@ void general_task( void * pvParameters)
       tools = get_tools();
 
       JsonDocument ms_doc;
-      byte match;
+      byte match, num_bit, get=0, put=0;
       int vl;
 
       for(j=0;j<list.size();j++)
@@ -156,30 +160,116 @@ void general_task( void * pvParameters)
         ms_doc = tools[list[j]];
         /**/
         JsonArray msk = ms_doc["mask"].as<JsonArray>();
-        //String msk = t_doc["mask"].as<String>();    
+        //String msk = t_doc["mask"].as<String>(); 
 
-         for(i=0;i<50;i++)
+         num_bit=0;
+
+         for(i=0;i<50;i++)          //счет байтов, содержащих маску данного инструмента
+         {
+          k = msk[i].as<int>(); 
+          if(k)
+          {
+             mask[num_bit] = i;     //Занесение в массив номеров ячеек, содержащих маску данного инструмента
+             num_bit++;          
+          }
+        
+         }
+
+         for(i=0;i<num_bit;i++)
+         {
+              j=msk[mask[i]].as<int>();           //Получение байта маски
+
+              if(((j&sens_buff[mask[i]])==j)      //Если на всех датчиках по этой маске есть сигнал
+                                                   //и при последнем изменении затронута и маска этого инструмента тоже
+                ) 
+                {
+                  get++; 
+                  if((j&sens_delta[mask[i]])>0)
+                    get|=0x80;
+                }                                  // - значит инструмент установлен
+
+              if(((j&sens_buff[mask[i]])==0)      //Если на всех датчиках по этой маске нет сигнала
+                                                  //и при последнем изменении затронута и маска этого инструмента тоже
+                )                                   // - значит инструмент взят
+                {
+                  put|=0x80;
+                  if((j&sens_delta[mask[i]])>0)
+                    put++;
+                }
+              sens_delta[mask[i]]&=~j;                //Очистить маску инструмента в дельте
+         }
+
+            if((put>(0x80))&&(get==0))
+              {
+                Serial.println("Инструмент: " +ms_doc["id"].as<String>() + " Был взят");
+                put=0;
+              }
+              put&=~0x80;
+            if((get==(num_bit|0x80))&&(put==0))
+            {
+              Serial.println("Инструмент: " +ms_doc["id"].as<String>() + " Был установлен");
+              get=0;
+             }
+
+
+          /*
+         if((get>0)||(put>0))
+         {
+              Serial.print("j: ");
+              Serial.println(j, DEC);
+              Serial.println("sens_delta[mask[0]]");
+              Serial.println(sens_delta[mask[0]], HEX);
+              Serial.println("sens_delta[mask[1]]");
+              Serial.println(sens_delta[mask[1]], HEX);
+              Serial.println("");              
+              }
+              sens_delta[mask[0]] =0;
+              sens_delta[mask[1]] =0;
+          */
+            //if((j&sens_delta[mask[i]])==j)      //Если дельта соответствует маске инструмента
+            if(false)
+            {
+              Serial.print("Инструмент: ");
+              Serial.println(ms_doc["id"].as<String>());
+
+              if((j&sens_buff[mask[i]])==j)     //Если при этом на всех датчиках по этой маске ничего нет
+                {
+                  Serial.println("Был установлен");
+                  s_action = convert_to(ms_doc["id"].as<String>(), true);
+                }
+              if((j&sens_buff[mask[i]])==0)     //Если при этом на всех датчиках по этой маске есть сигнал
+                {
+                  Serial.println("Был взят");
+                  s_action = convert_to(ms_doc["id"].as<String>(), true);
+                }
+
+
+              }
+  
+      /*
+          for(i=0;i<50;i++)
          {
           k = msk[i].as<int>();
           //Serial.print(k);          
           if(k>0)
           {
             match=0;
-            if((k&sens_delta[i])==k)
+            //if((k&sens_delta[i])==k)
+            if((k&sens_buff[i])==k)
             {
               match|=0x1;
+              if(num_bit)
+                num_bit--;
             }else
             {
               match|=0x2;
             }
           }
         }
-
-        //Serial.println("");
-
-        if(match&0x1)//((match&0x1)&&(match&0x2==0))
+             
+        if((match==0x1)&&(num_bit==0))//((match&0x1)&&(match&0x2==0))
         {
-          /**/
+          
           String id =ms_doc["id"].as<String>();
           Serial.print("Инструмент: ");
           Serial.println(id);
@@ -187,19 +277,20 @@ void general_task( void * pvParameters)
           if(sens_change>0)
           {
             Serial.println("Был установлен");
-            //s_action = convert_to(id, true);
+            s_action = convert_to(id, true);
            }
           if(sens_change==0)
           {
             Serial.println("Был взят");
-            //s_action = convert_to(id, false);       
+            s_action = convert_to(id, false);       
           }
+          Serial.println(s_action);
 
           if(sens_change>0)     //Если "Был установлен"
           {
             bool fl1=false;
            for(int a=0;a<user_list.size();a++)                    //Поиск пользователя, который брал и удаление из его списка
-           {/**/
+           {
             JsonArray _arr = users[user_list[a].as<String>()];
             for(int q=0;q<_arr.size();q++)
             {
@@ -216,18 +307,13 @@ void general_task( void * pvParameters)
           {
               users[user].add(id);
           }
-
-            //s_action = str;
-            //Serial.println(str);
-            //action = doc;
-            //box_action(str);
           }  
-      }
-
-
+        }
 
       for(i=0;i<50;i++)
         sens_delta[i] = 0;
+      */
+        }
       }
       /*
             for(i=0;i<50;i++)
@@ -290,6 +376,7 @@ void general_task( void * pvParameters)
         card_list=read_card_list();
         Serial.println("Работа в автономном режиме. Список крат:   ");
         Serial.println(card_list.as<String>());
+        
       }
     }
 
