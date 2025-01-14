@@ -161,6 +161,7 @@ void general_task( void * pvParameters)
         /**/
         JsonArray msk = ms_doc["mask"].as<JsonArray>();
         //String msk = t_doc["mask"].as<String>(); 
+        //String msk = t_doc["mask"].as<String>(); 
 
          num_bit=0;
 
@@ -260,6 +261,8 @@ void general_task( void * pvParameters)
               match|=0x1;
               if(num_bit)
                 num_bit--;
+              if(num_bit)
+                num_bit--;
             }else
             {
               match|=0x2;
@@ -278,12 +281,15 @@ void general_task( void * pvParameters)
           {
             Serial.println("Был установлен");
             s_action = convert_to(id, true);
+            s_action = convert_to(id, true);
            }
           if(sens_change==0)
           {
             Serial.println("Был взят");
             s_action = convert_to(id, false);       
+            s_action = convert_to(id, false);       
           }
+          Serial.println(s_action);
           Serial.println(s_action);
 
           if(sens_change>0)     //Если "Был установлен"
@@ -308,6 +314,7 @@ void general_task( void * pvParameters)
               users[user].add(id);
           }
           }  
+        }
         }
 
       for(i=0;i<50;i++)
