@@ -13,14 +13,21 @@ String user_action("https://api.steklm.ru:51112/api/log/");
 //String servergetCardList("https://api.steklm.ru:51112/api/card/getCard");
 
 String getToken_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"); //3C:84:27:20:F5:B4
-String body_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"); //3C:84:27:20:F5:B4
-String getToken_req1("{\n\"Login\": \"test\",\n\"Password\": \"test\"\n}");
+//String body_req("{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"); //3C:84:27:20:F5:C8
+//String getToken_req1("{\n\"Login\": \"test\",\n\"Password\": \"test\"\n}");
 byte server1[] = { 192, 168, 0, 26 };
 
 String token, r_login, s_action;
 JsonDocument card_list,       //Список карт 
               action,
               doc;
+
+extern String  wifi_ssid,      //Set Your SSID
+        wifi_parol,     //Set Your Passwor
+        parol_serv,
+        login_serv,
+        token_serv
+        ;
 
 bool get_token(void);
 JsonDocument get_card_list(void);
@@ -99,7 +106,20 @@ bool get_token(void)
           Serial.print("[HTTP] POST...\n");
           }
           https.addHeader("Content-Type", "application/json");
-          int httpCode = https.POST( getToken_req);
+          //"{\"Login\": \"3C-84-27-20-F5-B4\",\"Password\": \"ChkalovTest\"}"
+          if((login_serv.isEmpty())||(parol_serv.isEmpty()))
+            Serial.println("Логин/Пароль сервера отсутствует");
+          String str_getToken("{\"Login\": \"");
+          str_getToken+=login_serv ;
+          str_getToken+="\" ,\"Password\": \"";
+          str_getToken+=parol_serv;
+          str_getToken+="\"}";
+          Serial.print("str_getToken: ");
+          Serial.println(str_getToken);
+          Serial.print("parol_serv: ");
+          Serial.println(parol_serv);
+          //int httpCode = https.POST( getToken_req);
+          int httpCode = https.POST(parol_serv);
           vTaskDelay(10);
       
           // httpCode will be negative on error

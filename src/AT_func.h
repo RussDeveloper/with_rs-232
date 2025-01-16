@@ -76,6 +76,7 @@ void page_send(void)
       client.write(0x22);
       client.print(">");   
       client.print(ssid_buff[y]); 
+      client.print(WiFi.macAddress()); 
       client.println("</option>");        
     }
 
@@ -176,11 +177,11 @@ bool response_handler(String str)
     parol_serv = "";
     j+=sizeof("&parol=");
     j--;
-    for(i=0;i<5;i++)
+    for(i=0;i<25;i++)
     {
       if(str[j]==' ')
       {
-        i=6;
+        i=26;
       }else
       {
         parol_serv += str[j];     //Добавлять в строку символы, пока не попадется &
